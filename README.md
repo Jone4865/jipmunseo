@@ -29,6 +29,9 @@ https://jipmunseo.pages.dev (Cloudflare Pages · 예전 `*.vercel.app` 주소는
 - 첫 화면에 파일을 떨어뜨리면 쓸 수 있는 도구를 보여 주고, 고르면 그 도구에 파일을 넘겨요(HWP·여러 PDF처럼 도구가 하나면 바로 열어요 — `src/lib.ts` `toolsForFiles`, `src/app.ts` `offerTools`·`giveFiles`).
 - 이 브라우저에 기억하는 것(`src/prefs.ts`, localStorage): HWP 화질·굵은 글꼴, 이미지 압축의 형식·화질·최대 크기, PDF 용량 줄이기의 방법·정도, 최근에 연 도구 3개(첫 화면 소개 아래 칩). 문서 이름·내용은 남기지 않아요. 처리방침 '이 브라우저에 기억하는 것'과 같이 고쳐요.
 
+- 홈 화면 앱·인터넷 없이 다시 열기(2026-10-18): `public/manifest.webmanifest`(바로가기 'HWP 보기 · 변환'·'PDF 합치기'·'신분증 가리기', PC Chrome·Edge 에 설치하면 HWP·HWPX·PDF 를 '연결 프로그램 › 집문서'로 열어 첫 화면 도구 고르기로 넘겨요 — `file_handlers` + `launchQueue`). 서비스 워커 `dist/sw.js`(`config/sw.js` + `config/sw-plugin.ts`, 빌드할 때 미리 저장 목록·버전을 채워요): 화면·JS·CSS·아이콘·안내 페이지만 미리 저장하고, `/vendor/*`(23MB)는 그 도구를 한 번 쓰면 따로(`jms-vendor-v1`, 앱 버전이 바뀌어도 남음) 저장해요. HTML(404)·부분 응답은 저장하지 않고, 화면이 형식 검사로 `cache: "reload"` 다시 받기를 하면 네트워크로 가서 저장본을 고쳐요. 배경 지우기 모델(staticimgly.com)은 건드리지 않아요. `_headers` 에 `sw.js` no-cache, 서비스 워커가 Pretendard 를 받게 `connect-src` 에 같은 경로. 처리방침 '이 브라우저에 기억하는 것'에 Cache Storage 를 더했어요(적용일 10월 18일).
+- 화면 읽기: 도구가 결과를 그리면 제목을 한 번 읽어 줘요(`#sr-status`, '2.1 MB에서 1.0 MB로, 52% 줄었어요' — `sayArrows`). 진행 막대에 이름('진행 상황')과 지금 하는 일(`aria-valuetext`).
+
 ## 라이선스
 
 이 저장소는 **GNU AGPL-3.0** 으로 공개합니다 (`LICENSE`).

@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "집문서",
+  "short_name": "집문서",
+  "description": "HWP 파일을 열어 PDF·Word로 저장하고, PDF를 합치거나 나누고 용량을 줄여요.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f1e7",
+  "theme_color": "#f6f1e7",
+  "lang": "ko",
+  "icons": [
+    { "src": "/assets/icon.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/assets/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/assets/icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "shortcuts": [
+    { "name": "HWP 보기 · 변환", "short_name": "HWP 보기", "url": "/#hwp-view", "icons": [{ "src": "/assets/icon.png", "sizes": "512x512", "type": "image/png" }] },
+    { "name": "PDF 합치기", "url": "/#pdf-merge", "icons": [{ "src": "/assets/icon.png", "sizes": "512x512", "type": "image/png" }] },
+    { "name": "신분증 가리기 · 워터마크", "short_name": "신분증 가리기", "url": "/#id-mask", "icons": [{ "src": "/assets/icon.png", "sizes": "512x512", "type": "image/png" }] }
+  ],
+  "file_handlers": [
+    { "action": "/", "accept": { "application/x-hwp": [".hwp"], "application/haansofthwp": [".hwp"], "application/vnd.hancom.hwpx": [".hwpx"], "application/pdf": [".pdf"] } }
+  ]
+}

@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 // 집문서 — 라우터 (#pdf-merge 같은 주소로 도구마다 공유 가능)
 import { h, ICONS, arrowed, filesFromPaste, toast } from "./ui.js";
 import { mountMerge, mountSplit, mountOrganize, mountPdfCompress } from "./tools-pdf.js";
@@ -5,7 +6,7 @@ import { mountImgToPdf, mountCompress, mountExif } from "./tools-img.js";
 import { mountBg } from "./tools-bg.js";
 import { mountMask } from "./tools-mask.js";
 import { art } from "./art.js";
-import { toolsForFiles } from "./lib.js";
+import { toolsForFiles, sayArrows } from "./lib.js";
 import { PREF, readPref, writePref, pushRecent, parseRecent } from "./prefs.js";
 
 /** 도구 화면이 돌려주는 것 (없으면 {}) */
@@ -131,6 +132,28 @@ function route() {
 window.addEventListener("hashchange", route);
 route();
 
+/* 화면 읽기: 도구가 결과를 그리면 그 제목('3쪽짜리 PDF가 만들어졌어요')을 한 번 읽어 줘요.
+   예전에는 'PDF 합치기'만 저장 단추로 초점을 옮겨서, 다른 도구는 끝난 걸 화면 읽기로 알 수 없었어요.
+   배경 색을 바꿀 때처럼 같은 결과를 곧바로 다시 그리면 또 읽지 않아요 */
+const srStatus = $id("sr-status");
+let lastSaid = { text: "", at: 0 };
+new MutationObserver((recs) => {
+  for (const r of recs) for (const n of r.addedNodes) {
+    if (!(n instanceof HTMLElement)) continue;
+    const res = n.matches(".result") ? n : n.querySelector(".result");
+    const h2 = res?.querySelector("h2");
+    if (!h2) continue;
+    // 제목 옆 알약('52% 줄었어요')은 쉼표로 띄우고, 화살표는 '…에서 …로'로 읽어요
+    const c = h2.cloneNode(true) as HTMLElement;
+    c.querySelectorAll(".pill").forEach((p) => p.prepend(", "));
+    const t = sayArrows(c.textContent || "");
+    if (!t || (t === lastSaid.text && Date.now() - lastSaid.at < 5000)) continue;
+    lastSaid = { text: t, at: Date.now() };
+    srStatus.textContent = "";
+    setTimeout(() => { srStatus.textContent = t; }, 60);
+  }
+}).observe(view, { childList: true, subtree: true });
+
 // 클립보드 붙여넣기 (이미지 도구)
 document.addEventListener("paste", (e) => {
   if (!active?.onPaste) return;
@@ -148,3 +171,16 @@ window.addEventListener("drop", (e) => {
     else offerTools([...(e.dataTransfer as DataTransfer).files]);
   }
 });
+
+// 설치한 앱(PC Chrome·Edge)에서 HWP·PDF 파일을 '연결 프로그램 › 집문서'로 열면 첫 화면에 떨어뜨린 것처럼 도구로 넘겨요(manifest file_handlers)
+interface LaunchParams { files: readonly { getFile(): Promise<File> }[] }
+const lq = (window as unknown as { launchQueue?: { setConsumer(f: (p: LaunchParams) => void): void } }).launchQueue;
+lq?.setConsumer(async (p) => {
+  if (!p.files?.length) return;
+  try { offerTools(await Promise.all(p.files.map((f) => f.getFile()))); } catch { toast("파일을 열지 못했어요. 점선 상자에 다시 놓아 주세요"); }
+});
+
+// 인터넷 없이 다시 열기: 배포본에만 서비스 워커(dist/sw.js — vite.config.ts swPlugin). 개발 서버에서는 쓰지 않아요
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+}

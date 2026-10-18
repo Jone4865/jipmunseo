@@ -89,7 +89,8 @@ export function progress() {
   const fill = h("i");
   const bar = h("div", { class: "bar" }, fill);
   const text = h("div", { class: "ptext" });
-  const el = h("div", { class: "progress", hidden: true, role: "progressbar", "aria-valuemin": "0", "aria-valuemax": "100" }, bar, text);
+  // 화면 읽기: 막대에 이름('진행 상황')과 지금 하는 일(aria-valuetext — '모델 받는 중… 12.3 / 56.1MB')을 붙여요
+  const el = h("div", { class: "progress", hidden: true, role: "progressbar", "aria-label": "진행 상황", "aria-valuemin": "0", "aria-valuemax": "100" }, bar, text);
   return {
     el,
     set(frac?: number | null, msg?: string | null) {
@@ -97,7 +98,7 @@ export function progress() {
       const indet = frac == null;
       bar.classList.toggle("indet", indet);
       if (!indet) { const p = Math.round(Math.max(0, Math.min(1, frac)) * 100); fill.style.width = p + "%"; el.setAttribute("aria-valuenow", String(p)); }
-      if (msg != null) text.textContent = msg;
+      if (msg != null) { text.textContent = msg; el.setAttribute("aria-valuetext", msg); }
     },
     hide() { el.hidden = true; fill.style.width = "0"; },
   };

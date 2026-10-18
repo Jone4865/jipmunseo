@@ -365,3 +365,8 @@ export function uniqueName(name: string, used: Set<string>): string {
   used.add(out);
   return out;
 }
+
+/** 화면 읽기용 결과 문장: '2.1 MB → 1.0 MB, 52% 줄었어요' → '2.1 MB에서 1.0 MB로, 52% 줄었어요'(화살표는 '오른쪽 화살표'로 읽혀서) */
+export function sayArrows(text: string): string {
+  return text.replace(/\s+/g, " ").trim().replace(/\s*→\s*([^,→]+?)\s*(?=,|$)/g, "에서 $1로");
+}

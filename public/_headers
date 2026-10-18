@@ -1,8 +1,9 @@
 # Cloudflare Pages 헤더 — 로컬 확인(dev/serve.mjs)도 이 파일을 그대로 읽어요
 #  script-src: 이 사이트 파일만 (+ 배경 지우기 라이브러리가 만드는 blob 워커, WebAssembly)
 #  글꼴(Pretendard)은 jsDelivr 의 그 버전 경로만 허용 + index.html 에서 SRI 로 무결성 확인
+#  서비스 워커(sw.js)가 그 글꼴을 받아 저장할 수 있게 connect-src 에도 같은 경로. sw.js 는 늘 새로 확인(no-cache)
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' blob: https://staticimgly.com; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/; font-src 'self' https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' blob:; worker-src 'self' blob:; connect-src 'self' blob: https://staticimgly.com https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/; font-src 'self' https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   Referrer-Policy: no-referrer
   X-Content-Type-Options: nosniff
   X-Frame-Options: DENY
@@ -11,3 +12,6 @@
 
 /vendor/*
   Cache-Control: public, max-age=31536000, immutable
+
+/sw.js
+  Cache-Control: no-cache

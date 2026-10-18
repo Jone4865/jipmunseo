@@ -19,7 +19,7 @@ export function mountBg(root: HTMLElement): Mounted {
   const out = h("div");
   const dz = dropzone({ accept: "image/*,.heic,.heif", multiple: false, title: "배경을 지울 사진을 끌어다 놓으세요", sub: "JPG · PNG · WebP · HEIC · 눌러서 고르기 · 붙여넣기도 돼요", onFiles: (f) => pick(f[0]) });
   const note = h("div", { class: "alert info" },
-    `처음 한 번 AI 모델(약 ${BG_DOWNLOAD_MB}MB)을 받아와요. 사진은 안 보내요 — 모델을 이 브라우저로 가져와서 여기서 바로 돌려요. 두 번째부터는 저장된 모델을 써서 더 빨라요.`);
+    `처음 한 번 AI 모델(약 ${BG_DOWNLOAD_MB}MB)을 받아요. 휴대폰 데이터라면 와이파이에서 하는 게 좋아요. 두 번째부터는 받아 둔 모델로 바로 지워요.`);
   const before = h("div", { class: "bg-view" });
   const after = h("div", { class: "bg-view checker" });
   const color = h("input", { type: "color", class: "color", value: bgColor, "aria-label": "배경색" });
@@ -83,7 +83,7 @@ export function mountBg(root: HTMLElement): Mounted {
             fetched[key] = [cur, total];
             const c = Object.values(fetched).reduce((a, x) => a + x[0], 0);
             const t = Object.values(fetched).reduce((a, x) => a + x[1], 0);
-            prog.set(t ? c / t : null, `모델 받는 중… ${(c / 1048576).toFixed(1)} / ${(t / 1048576).toFixed(1)}MB (사진은 안 보내요)`);
+            prog.set(t ? c / t : null, `모델 받는 중… ${(c / 1048576).toFixed(1)} / ${(t / 1048576).toFixed(1)}MB`);
           } else if (key.startsWith("compute:")) {
             prog.set(null, "사진에서 배경을 찾는 중… (기기 성능에 따라 몇 초~수십 초)");
           }
