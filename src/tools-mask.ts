@@ -5,7 +5,8 @@ import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterF
 import { formatSize, kindOf, outName, normRect, rectAt, watermarkLines, watermarkMetrics, kstDateLabel, mmToPt, type Rect, type WatermarkSize } from "./lib.js";
 import type { Mounted } from "./app.js";
 
-interface Page { canvas: HTMLCanvasElement; wPt: number; hPt: number; masks: Rect[] }
+/** history: 바꾸기 전 가린 곳들(되돌리기용) — 칠하기·톡 눌러 지우기·모두 지우기마다 하나씩 */
+interface Page { canvas: HTMLCanvasElement; wPt: number; hPt: number; masks: Rect[]; history: Rect[][] }
 const COLORS = { gray: "#374151", red: "#dc2626", blue: "#1d4ed8" } as const;
 type WmColor = keyof typeof COLORS;
 const MAX_PAGES = 10;
@@ -39,8 +40,10 @@ export function mountMask(root: HTMLElement): Mounted {
   const nextBtn = h("button", { type: "button", class: "btn sm", onclick: () => go(cur + 1) }, "뒤 쪽", icon("next"));
   const pager = h("div", { class: "row mask-pager" }, prevBtn, pageInfo, nextBtn);
   const count = h("span", { class: "muted" });
-  const undoBtn = h("button", { type: "button", class: "btn sm", onclick: () => { page().masks.pop(); changed(); } }, "되돌리기");
-  const clearBtn = h("button", { type: "button", class: "btn sm ghost", onclick: () => { page().masks = []; changed(); } }, "이 쪽 가린 곳 모두 지우기");
+  // 되돌리기는 마지막에 한 일을 되돌려요. 예전에는 늘 마지막 네모만 지워서, 톡 눌러 지운 곳·'모두 지우기'는 되살릴 수 없고
+  // 오히려 남아 있던 다른 네모가 지워졌어요
+  const undoBtn = h("button", { type: "button", class: "btn sm", onclick: () => { const p = page(), prev = p?.history.pop(); if (!p || !prev) return; p.masks = prev; changed(); } }, "되돌리기");
+  const clearBtn = h("button", { type: "button", class: "btn sm ghost", onclick: () => { const p = page(); if (!p?.masks.length) return; p.history.push(p.masks); p.masks = []; changed(); } }, "이 쪽 가린 곳 모두 지우기");
   const fileLine = h("div", { class: "muted" });
 
   const toIn = h("input", { class: "input", type: "text", maxlength: "30", placeholder: "예) OO은행, OO부동산", "aria-label": "제출처", autocomplete: "off" });
@@ -135,7 +138,7 @@ export function mountMask(root: HTMLElement): Mounted {
     out.replaceChildren();
     const n = page()?.masks.length || 0, all = pages.reduce((a, p) => a + p.masks.length, 0);
     count.textContent = pages.length > 1 ? `이 쪽 ${n}곳 · 모두 ${all}곳 가림` : `${n}곳 가림`;
-    undoBtn.disabled = !n; clearBtn.disabled = !n;
+    undoBtn.disabled = !page()?.history.length; clearBtn.disabled = !n;
     pager.hidden = pages.length < 2;
     pageInfo.textContent = `${cur + 1} / ${pages.length}쪽`;
     prevBtn.disabled = cur === 0; nextBtn.disabled = cur >= pages.length - 1;
@@ -179,8 +182,8 @@ export function mountMask(root: HTMLElement): Mounted {
     // 화면에서 6px 보다 작게 끌면 '누르기'로 봐요 → 그 자리의 칠한 곳 지우기
     const minPx = 6 / scale;
     const r = normRect(d.x0, d.y0, d.x1, d.y1, p.canvas.width, p.canvas.height, minPx);
-    if (r) p.masks.push(r);
-    else { const i = rectAt(p.masks, d.x0, d.y0); if (i >= 0) p.masks.splice(i, 1); }
+    if (r) { p.history.push([...p.masks]); p.masks.push(r); }
+    else { const i = rectAt(p.masks, d.x0, d.y0); if (i >= 0) { p.history.push([...p.masks]); p.masks.splice(i, 1); } }
     changed();
   };
   canvas.addEventListener("pointerup", finish);
@@ -208,7 +211,7 @@ export function mountMask(root: HTMLElement): Mounted {
           for (let i = 0; i < doc.numPages; i++) {
             prog.set(i / doc.numPages, `${i + 1}/${doc.numPages}쪽 그리는 중…`);
             const r = await renderPdfPage(doc, i, RENDER_DPI);
-            pages.push({ ...r, masks: [] });
+            pages.push({ ...r, masks: [], history: [] });
           }
         } finally { doc.destroy?.(); }
       } else {
@@ -216,7 +219,7 @@ export function mountMask(root: HTMLElement): Mounted {
         const img = await decodeImage(file);
         const c = drawToCanvas(img, img.width, img.height, "#fff");
         img.close();
-        pages.push({ canvas: c, wPt: 0, hPt: 0, masks: [] });
+        pages.push({ canvas: c, wPt: 0, hPt: 0, masks: [], history: [] });
       }
       src = { name: file.name, size: file.size, isPdf };
       fileLine.replaceChildren(h("b", { style: "color:var(--ink)" }, file.name), ` · ${isPdf ? `${pages.length}쪽 · ` : `${pages[0].canvas.width}×${pages[0].canvas.height} · `}${formatSize(file.size)}`);

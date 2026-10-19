@@ -42,6 +42,26 @@ export function iconBtn(name: string, label: string, onClick: (e: MouseEvent) =>
   return h("button", { type: "button", class: `icon-btn ${extra}`, title: label, "aria-label": label, html: ICONS[name], onclick: onClick });
 }
 
+/**
+ * 목록 항목의 단추('위로'·'아래로'·'빼기'·돌리기)를 누르면 목록을 통째로 새로 그려서, 키보드로 누르면 초점이 페이지 맨 앞으로 빠졌어요.
+ * 단추가 초점을 가진 채 눌렸으면(키보드·안드로이드) 다시 그린 뒤 옮긴 항목의 같은 단추로 초점을 돌려요.
+ * 끝에 닿아 그 단추가 꺼졌으면 그 항목의 켜진 단추로, 지운 항목이면 그 자리에 온 항목으로.
+ */
+export function rowAction(container: HTMLElement, rowSel: string, act: () => number | null): (e: MouseEvent) => void {
+  return (e) => {
+    const btn = e.currentTarget as HTMLElement | null;
+    const had = !!btn && btn === document.activeElement;
+    const label = btn?.getAttribute("aria-label") ?? "";
+    const to = act();
+    if (!had || to === null) return;
+    const rows = container.querySelectorAll<HTMLElement>(rowSel);
+    const row = rows[Math.max(0, Math.min(to, rows.length - 1))];
+    if (!row) return;
+    const btns = [...row.querySelectorAll<HTMLButtonElement>("button")].filter((b) => !b.disabled);
+    (btns.find((b) => b.getAttribute("aria-label") === label) ?? btns[0])?.focus();
+  };
+}
+
 /* ───── 토스트 ───── */
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export function toast(msg: string): void {
@@ -183,14 +203,20 @@ export interface SegOption<T> { value: T; label: string; disabled?: boolean; tit
 export type Seg<T> = HTMLDivElement & { setValue(v: T): void };
 export function seg<T>(options: SegOption<T>[], value: T, onChange: (v: T) => void): Seg<T> {
   const el = h("div", { class: "seg", role: "group" }) as Seg<T>;
-  const render = () => {
-    el.replaceChildren(...options.map((o) => h("button", {
-      type: "button", "aria-pressed": String(o.value === value), disabled: o.disabled || null, title: o.title || null,
-      onclick: () => { if (o.value !== value) { value = o.value; render(); onChange(value); } },
-    }, o.label)));
-  };
-  render();
-  el.setValue = (v) => { value = v; render(); };
+  // 단추는 한 번만 만들고 눌린 모양·꺼짐만 고쳐요. 예전에는 누를 때마다 단추를 새로 만들어서, 키보드로 고르면 초점이 페이지 맨 앞으로 빠졌어요
+  const btns = options.map((o) => h("button", {
+    type: "button",
+    onclick: () => { if (o.value !== value && !o.disabled) { value = o.value; sync(); onChange(value); } },
+  }, o.label) as HTMLButtonElement);
+  const sync = () => btns.forEach((b, i) => {
+    const o = options[i];
+    b.setAttribute("aria-pressed", String(o.value === value));
+    b.disabled = !!o.disabled;
+    if (o.title) b.title = o.title; else b.removeAttribute("title");
+  });
+  el.replaceChildren(...btns);
+  sync();
+  el.setValue = (v) => { value = v; sync(); };
   return el;
 }
 

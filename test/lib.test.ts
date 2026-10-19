@@ -21,9 +21,9 @@ test("parseRanges: 오류", () => {
   assert.throws(() => parseRanges("", 5), /입력/);
   assert.throws(() => parseRanges("0", 5), /1부터 5/);
   assert.throws(() => parseRanges("4-9", 5), /1부터 5/);
-  assert.throws(() => parseRanges("a-b", 5), /이해하지/);
-  assert.throws(() => parseRanges("1-2-3", 5), /이해하지/);
-  assert.throws(() => parseRanges("-", 5), /이해하지/);
+  assert.throws(() => parseRanges("a-b", 5), /읽지 못했어요/);
+  assert.throws(() => parseRanges("1-2-3", 5), /읽지 못했어요/);
+  assert.throws(() => parseRanges("-", 5), /읽지 못했어요/);
   assert.throws(() => parseRanges("1", 0), /페이지가 없어요/);
 });
 test("rangesToSet / formatRanges", () => {

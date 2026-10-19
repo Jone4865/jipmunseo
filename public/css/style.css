@@ -260,6 +260,8 @@ input[type="range"] { width: 100%; accent-color: var(--acc); min-height: 32px; }
 
 /* EXIF 칩 */
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 5px; }
+/* 찾은 정보 칩은 줄여 쓰지 않고 다음 줄로 — 휴대폰에서 '찍은 때: 2026. 5. 5. 오후 2:3…'처럼 시각·위치가 잘려 무엇이 남았는지 못 봤어요(손가락 화면엔 title 도 안 떠요) */
+.chips .chip { white-space: normal; overflow-wrap: anywhere; }
 .chip { font-size: 13px; padding: 1px 9px; border-radius: 6px; background: #f2f0ec; border: 1px solid var(--line); color: var(--ink); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; }
 .ritem .chip + .chip { margin-left: 4px; }
 .chip.gps { background: #ffe9a8; border-color: #e0b843; font-weight: 800; color: #7c4a03; }

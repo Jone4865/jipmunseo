@@ -530,7 +530,10 @@ export function mountHwp(root: HTMLElement): Mounted {
       h("span", { class: "hwp-fmt-top" }, h("b", {}, c.title), h("span", { class: `hwp-tag${c.shape ? " shape" : ""}` }, c.tag)),
       h("span", { class: "hwp-fmt-desc" }, r.ok ? c.desc : MSG.blocked[r.why ?? "print"]));
     });
+    // 카드를 새로 그려도 키보드로 고른 카드에 초점을 남겨요(Space·Enter 로 고르면 초점이 페이지 맨 앞으로 빠졌어요)
+    const hadFocus = fmtGroup.contains(document.activeElement);
     fmtGroup.replaceChildren(...cards);
+    if (hadFocus) (fmtGroup.querySelector(`[data-fmt="${fmt}"]`) as HTMLElement | null)?.focus();
   }
   fmtGroup.addEventListener("keydown", (e) => {
     if (!doc || !["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp"].includes(e.key)) return;

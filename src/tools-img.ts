@@ -1,5 +1,5 @@
 // 이미지 도구: 이미지→PDF / 압축·변환·크기 / 사진 정보(EXIF) 지우기
-import { type SegOption, h, ICONS, icon, arrowed, iconBtn, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast } from "./ui.js";
+import { type SegOption, h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast } from "./ui.js";
 import { PREF, readPref, writePref, pickPref, intPref, sizePref } from "./prefs.js";
 import { formatSize, outName, moveItem, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord } from "./lib.js";
 import { vendorImport, type ExifrModule, type Exifr, type ExifData } from "./vendor.js";
@@ -50,9 +50,9 @@ function imageList({ orderable }: { orderable: boolean }) {
           h("div", { class: "fsub" }, it.error ? h("span", { class: "bad" }, it.error) : it.w ? `${it.w}×${it.h} · ${formatSize(it.file.size)}` : "여는 중…", it.status ? h("span", {}, " · ", it.status) : null),
           it.extra || null),
         h("div", { class: "fbtns" },
-          orderable ? iconBtn("up", "위로", () => { items = moveItem(items, i, i - 1); api.render(); }) : null,
-          orderable ? iconBtn("down", "아래로", () => { items = moveItem(items, i, i + 1); api.render(); }) : null,
-          iconBtn("x", "빼기", () => api.remove(i), "danger")))));
+          orderable ? iconBtn("up", "위로", rowAction(el, ".fitem", () => { items = moveItem(items, i, i - 1); api.render(); return i - 1; })) : null,
+          orderable ? iconBtn("down", "아래로", rowAction(el, ".fitem", () => { items = moveItem(items, i, i + 1); api.render(); return i + 1; })) : null,
+          iconBtn("x", "빼기", rowAction(el, ".fitem", () => { api.remove(i); return items.length ? i : null; }), "danger")))));
       if (orderable) {
         el.firstElementChild?.querySelector('[aria-label="위로"]')?.setAttribute("disabled", "");
         el.lastElementChild?.querySelector('[aria-label="아래로"]')?.setAttribute("disabled", "");

@@ -12,7 +12,8 @@ export interface ImageLayout { pageW: number; pageH: number; x: number; y: numbe
  */
 export function parseRanges(input: unknown, pageCount: number): number[][] {
   const text = String(input ?? "")
-    .replace(/[～〜~–—]/g, "-")
+    .normalize("NFKC") // 전각 숫자·기호(５, －)도 받아요
+    .replace(/[～〜~–—−]/g, "-")
     .replace(/[，、;]/g, ",")
     .trim();
   if (!text) throw new Error("페이지 범위를 입력해 주세요. 예) 1-3, 5");
@@ -36,7 +37,8 @@ export function parseRanges(input: unknown, pageCount: number): number[][] {
       else for (let i = a; i >= b; i--) g.push(i - 1);
       groups.push(g);
     } else {
-      throw new Error(`"${raw.trim()}"을(를) 이해하지 못했어요. 예) 1-3, 5, 8-10`);
+      // '을(를)' 대신 다른 안내('"0" — 페이지는 …')와 같은 꼴로
+      throw new Error(`"${raw.trim()}" — 쪽 번호로 읽지 못했어요. 예) 1-3, 5, 8-10`);
     }
   }
   if (!groups.length) throw new Error("페이지 범위를 입력해 주세요. 예) 1-3, 5");

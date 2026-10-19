@@ -68,7 +68,7 @@ function offerTools(files: File[]): void {
   const what = files.length === 1 ? `‘${files[0].name}’ 파일` : `파일 ${files.length}개`;
   box.replaceChildren(
     h("p", { class: "offer-title" }, `${what}로 무엇을 할까요?`),
-    h("div", { class: "offer-tools" }, ...ids.map((id) => h("button", { type: "button", class: "btn", onclick: () => { handoff = files; box.hidden = true; location.hash = id; } }, ...arrowed(byId[id].title)))),
+    h("div", { class: "offer-tools" }, ...ids.map((id) => h("button", { type: "button", class: "btn", onclick: () => { handoff = files; box.hidden = true; location.hash = id; } }, h("span", {}, ...arrowed(byId[id].title))))), // 단추의 flex 틈이 화살표 양옆에 또 붙어 '이미지   →   PDF'로 벌어지지 않게 한 덩어리로
     h("button", { type: "button", class: "btn ghost sm", onclick: () => { box.hidden = true; } }, "그만두기"));
   box.hidden = false;
   box.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });

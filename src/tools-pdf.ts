@@ -1,5 +1,5 @@
 // PDF 도구: 합치기 / 나누기·페이지 빼기 / 회전·순서
-import { h, ICONS, icon, arrowed, iconBtn, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob } from "./ui.js";
+import { h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob } from "./ui.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
 import { formatSize, outName, moveItem, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, type CompressMode, type CompressLevel } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
@@ -31,7 +31,9 @@ export function mountMerge(root: HTMLElement): Mounted {
   const dz = dropzone({ accept: "application/pdf,.pdf", title: "PDF 파일을 여기에 끌어다 놓으세요", sub: "또는 눌러서 고르기 · 여러 개 한꺼번에 가능", onFiles: add });
 
   root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
-  sortable(listEl, ".fitem", (a, b) => { files = moveItem(files, a, b); render(); });
+  /** 순서·파일이 바뀌면 지난 결과는 지금 목록과 달라요 — 예전에는 바꾼 뒤에도 '15쪽짜리 PDF가 만들어졌어요'와 옛 파일 내려받기가 남았어요 */
+  const relist = () => { out.replaceChildren(); render(); };
+  sortable(listEl, ".fitem", (a, b) => { files = moveItem(files, a, b); relist(); });
 
   async function add(list: File[]): Promise<void> {
     err.hide();
@@ -39,7 +41,7 @@ export function mountMerge(root: HTMLElement): Mounted {
     for (const file of ok) {
       const it: (typeof files)[number] = { id: ++uid, file, pages: null, error: null };
       files.push(it);
-      render();
+      relist();
       try {
         const buf = await file.arrayBuffer();
         it.pages = (await runPdf<{ pages: number }>("count", { buf }, [buf])).pages;
@@ -58,9 +60,9 @@ export function mountMerge(root: HTMLElement): Mounted {
         h("div", { class: "fname", title: f.file.name }, f.file.name),
         h("div", { class: "fsub" }, f.error ? h("span", { class: "bad" }, f.error) : f.pages == null ? "쪽수 세는 중…" : `${f.pages}쪽`, " · ", formatSize(f.file.size))),
       h("div", { class: "fbtns" },
-        iconBtn("up", "위로", () => { files = moveItem(files, i, i - 1); render(); }),
-        iconBtn("down", "아래로", () => { files = moveItem(files, i, i + 1); render(); }),
-        iconBtn("x", "빼기", () => { files.splice(i, 1); render(); }, "danger")))));
+        iconBtn("up", "위로", rowAction(listEl, ".fitem", () => { files = moveItem(files, i, i - 1); relist(); return i - 1; })),
+        iconBtn("down", "아래로", rowAction(listEl, ".fitem", () => { files = moveItem(files, i, i + 1); relist(); return i + 1; })),
+        iconBtn("x", "빼기", rowAction(listEl, ".fitem", () => { files.splice(i, 1); relist(); return files.length ? i : null; }), "danger")))));
     listEl.querySelectorAll(".fitem")[0]?.querySelector('[aria-label="위로"]')?.setAttribute("disabled", "");
     [...listEl.querySelectorAll(".fitem")].at(-1)?.querySelector('[aria-label="아래로"]')?.setAttribute("disabled", "");
     const good = files.filter((f) => f.pages);
@@ -137,7 +139,7 @@ export function mountSplit(root: HTMLElement): Mounted {
   rangeIn.addEventListener("input", () => {
     if (mode === "pick") {
       try { sel = new Set(rangesToSet(parseRanges(rangeIn.value, C().pages))); rangeHint.className = "hint"; syncSel(false); }
-      catch (e) { if (rangeIn.value.trim()) { rangeHint.className = "hint bad"; rangeHint.textContent = errMsg(e); } else { sel.clear(); syncSel(false); } }
+      catch (e) { if (rangeIn.value.trim()) { rangeHint.className = "hint bad"; rangeHint.textContent = errMsg(e); update(); } else { sel.clear(); syncSel(false); } }
     } else update();
   });
 
@@ -194,8 +196,10 @@ export function mountSplit(root: HTMLElement): Mounted {
     if (pick) {
       if (rangeHint.className !== "hint bad") rangeHint.textContent = "썸네일을 누르거나 범위를 적어서 고르세요.";
       const n = keep === "keep" ? sel.size : C().pages - sel.size;
-      go.disabled = !sel.size || n < 1;
-      go.textContent = !sel.size ? "페이지를 골라 주세요" : n < 1 ? "모든 쪽을 지울 순 없어요" : keep === "keep" ? `${sel.size}쪽으로 새 PDF 만들기` : `${sel.size}쪽 지우고 저장 (${n}쪽 남음)`;
+      // 범위 칸에 잘못 적은 채로는 만들지 않아요 — 예전에는 '11'처럼 없는 쪽을 적어 안내가 떠도 그 전에 고른 쪽으로 만들 수 있었어요
+      const badRange = rangeHint.className === "hint bad";
+      go.disabled = badRange || !sel.size || n < 1;
+      go.textContent = badRange ? "범위를 고쳐 주세요" : !sel.size ? "페이지를 골라 주세요" : n < 1 ? "모든 쪽을 지울 순 없어요" : keep === "keep" ? `${sel.size}쪽으로 새 PDF 만들기` : `${sel.size}쪽 지우고 저장 (${n}쪽 남음)`;
     } else if (mode === "each") {
       go.disabled = C().pages < 2;
       go.textContent = C().pages < 2 ? "1쪽짜리는 나눌 게 없어요" : `${C().pages}개 파일로 나누기`;
@@ -271,14 +275,16 @@ export function mountOrganize(root: HTMLElement): Mounted {
     h("div", { class: "panel" },
       h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: reset }, "다른 PDF")),
       h("div", { class: "row" },
-        h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot - 90))); render(); } }, icon("rotL"), "모두 왼쪽으로"),
-        h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot + 90))); render(); } }, icon("rotR"), "모두 오른쪽으로"),
-        h("button", { type: "button", class: "btn sm ghost", onclick: () => { items = [...Array(C().pages).keys()].map((idx) => ({ idx, rot: 0 })); render(); toast("처음 상태로 되돌렸어요"); } }, "처음 상태로"))),
+        h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot - 90))); edit(); } }, icon("rotL"), "모두 왼쪽으로"),
+        h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot + 90))); edit(); } }, icon("rotR"), "모두 오른쪽으로"),
+        h("button", { type: "button", class: "btn sm ghost", onclick: () => { items = [...Array(C().pages).keys()].map((idx) => ({ idx, rot: 0 })); edit(); toast("처음 상태로 되돌렸어요"); } }, "처음 상태로"))),
     h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", {}, "페이지"), info),
       h("p", { class: "hint", style: "margin:-6px 0 10px" }, "썸네일을 끌어서 순서를 바꾸거나, 아래 버튼으로 돌리기 · 옮기기 · 지우기를 할 수 있어요."), grid),
     h("div", { class: "actions" }, go));
   root.append(dz, err.el, work, prog.el, out);
-  sortable(grid, ".thumb", (a, b) => { items = moveItem(items, a, b); render(); }, { horizontal: true });
+  /** 돌리고 옮기고 지우면 지난번에 저장한 결과는 지금 모습과 달라서 걷어요 */
+  const edit = () => { out.replaceChildren(); render(); };
+  sortable(grid, ".thumb", (a, b) => { items = moveItem(items, a, b); edit(); }, { horizontal: true });
 
   function reset() {
     cur?.renderer.destroy(); cur = null; items = []; thumbsByIdx.clear(); out.replaceChildren(); err.hide();
@@ -316,11 +322,11 @@ export function mountOrganize(root: HTMLElement): Mounted {
         box,
         h("div", { class: "tlabel" }, h("b", {}, `${i + 1}`), it.idx !== i ? h("span", {}, `원래 ${it.idx + 1}쪽`) : null),
         h("div", { class: "tbtns" },
-          iconBtn("rotL", "왼쪽으로 돌리기", () => { it.rot = normRotation(it.rot - 90); render(); }),
-          iconBtn("rotR", "오른쪽으로 돌리기", () => { it.rot = normRotation(it.rot + 90); render(); }),
-          iconBtn("left", "앞으로", () => { items = moveItem(items, i, i - 1); render(); }),
-          iconBtn("right", "뒤로", () => { items = moveItem(items, i, i + 1); render(); }),
-          iconBtn("x", "이 쪽 지우기", () => { if (items.length === 1) return toast("마지막 한 쪽은 지울 수 없어요"); items.splice(i, 1); render(); }, "danger")));
+          iconBtn("rotL", "왼쪽으로 돌리기", rowAction(grid, ".thumb", () => { it.rot = normRotation(it.rot - 90); edit(); return i; })),
+          iconBtn("rotR", "오른쪽으로 돌리기", rowAction(grid, ".thumb", () => { it.rot = normRotation(it.rot + 90); edit(); return i; })),
+          iconBtn("left", "앞으로", rowAction(grid, ".thumb", () => { items = moveItem(items, i, i - 1); edit(); return i - 1; })),
+          iconBtn("right", "뒤로", rowAction(grid, ".thumb", () => { items = moveItem(items, i, i + 1); edit(); return i + 1; })),
+          iconBtn("x", "이 쪽 지우기", rowAction(grid, ".thumb", () => { if (items.length === 1) { toast("마지막 한 쪽은 지울 수 없어요"); return null; } items.splice(i, 1); edit(); return i; }), "danger")));
     }));
     grid.querySelectorAll(".thumb").forEach((t, i) => {
       if (i === 0) (t.querySelector('[aria-label="앞으로"]') as HTMLButtonElement).disabled = true;
@@ -349,6 +355,8 @@ export function mountOrganize(root: HTMLElement): Mounted {
       const { bytes } = await runPdf<{ bytes: Bytes }>("organize", { buf, items: items.map((x) => ({ idx: x.idx, rot: x.rot })) }, [buf]);
       prog.set(1, "완료!");
       out.replaceChildren(h("div", { class: "result", id: "result" }, h("h2", {}, icon("ok"), `${items.length}쪽짜리 PDF로 저장했어요`), resultItem({ name: outName(C().file.name, "편집", "pdf"), blob: pdfBlob(bytes) })));
+      // 저장 단추를 누른 뒤 쪽 목록을 다시 그려 초점이 페이지 맨 앞으로 빠지지 않게 내려받기로(합치기와 같게)
+      out.querySelector<HTMLButtonElement>("button.primary")?.focus();
     } catch (e) { err.show(errMsg(e)); }
     finally { setTimeout(() => prog.hide(), 800); render(); }
   }
