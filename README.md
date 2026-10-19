@@ -68,7 +68,7 @@ pdf-lib (MIT) · PDF.js (Apache-2.0) · fflate (MIT) · exifr (MIT) · heic-to (
 
 - 코드: `src/*.ts` (`strict`). 화면 → `dist/js/` 로 묶이고, PDF 작업은 `src/pdf-worker.ts`, 한글 문서는 `src/hwp-worker.ts` 모듈 워커(`vendor:rhwp` → `/vendor/rhwp-0.8.7/rhwp.js` 그대로, `vite.config.ts`).
 - vendor 라이브러리(pdf-lib · PDF.js · fflate · exifr · heic-to · bg-removal · rhwp)는 `public/vendor/` 의 고정 버전 파일을 **처음 쓸 때** 그 주소 그대로 불러와요(`src/vendor.ts` 의 `vendorImport`). 쓰는 API 만 타입으로 적었어요(`src/vendor.ts`, 워커의 pdf-lib 은 `src/pdf-lib.d.ts`).
-- `public/` (vendor · css · assets · `_headers`) 은 같은 경로로 복사돼요. CSS 는 Vite 가 손대지 않아요.
+- `public/` (vendor · css · assets · `_headers`) 은 같은 경로로 복사돼요. CSS 는 Vite 가 손대지 않고, 빌드 끝에 `css/style.css` 이름에만 내용 해시를 붙여 모든 HTML 링크를 바꿔요(`css/style.<해시>.css`, `config/sw-plugin.ts` `hashStyles`) — 페이지는 네트워크 우선·CSS 는 저장본 먼저라, 배포 뒤 처음 열 때 깔려 있던 서비스 워커가 옛 CSS 를 새 화면에 붙이지 않게요.
 - 디자인: 초록 커팅 매트 위 반듯한 카드, 포인트 파랑 `#2563eb`. 손글씨·연필·도장 장식은 쓰지 않아요(Jone Lab 가이드 3차 개정).
 - 공유 이미지·아이콘: `dev/make-og.py`(→ `public/assets/og.svg`), `dev/export-art.mjs`(일러스트 → `dev/art/`), PNG 는 `dev/render-png.sh`(크롬 헤드리스).
 

@@ -24,8 +24,9 @@ for f in "rhwp_bg.wasm:^application/wasm" "rhwp.js:$JS" \
 done
 check /vendor/fflate-0.8.2.mjs 200 "$JS"
 check /vendor/pdf-lib-1.17.1.esm.min.js 200 "$JS"
-# 이번 빌드의 js 조각(워커·PUA 표 포함)이 다 올라갔는지
+# 이번 빌드의 js 조각(워커·PUA 표 포함)과 해시 붙은 CSS 가 다 올라갔는지
 for f in dist/js/*.js; do [[ -e $f ]] && check "/js/${f##*/}" 200 "$JS"; done
+for f in dist/css/*.css; do [[ -e $f ]] && check "/css/${f##*/}" 200 ^text/css; done
 check / 200 ^text/html
 check /hwp 200 ^text/html
 check /licenses 200 ^text/html

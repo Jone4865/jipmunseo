@@ -5,7 +5,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { precacheList } from "../config/sw-plugin.js";
+import { hashStyles, precacheList } from "../config/sw-plugin.js";
 import { sayArrows } from "../src/lib.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -72,4 +72,20 @@ test("sayArrows: 결과 제목의 화살표를 '…에서 …로'로", () => {
   assert.equal(sayArrows("3장 끝! 2.1 MB → 1.0 MB , 52% 줄었어요"), "3장 끝! 2.1 MB에서 1.0 MB로, 52% 줄었어요");
   assert.equal(sayArrows("12쪽짜리 PDF가 만들어졌어요"), "12쪽짜리 PDF가 만들어졌어요");
   assert.equal(sayArrows("  배경을   지웠어요 "), "배경을 지웠어요");
+});
+
+test("css/style.css 는 이름에 내용 해시 — 배포 뒤 깔려 있던 서비스 워커가 옛 CSS 를 새 화면에 붙이지 않게(버그 찾기 3차)", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jms-css-"));
+  try {
+    fs.mkdirSync(path.join(dir, "css"));
+    fs.writeFileSync(path.join(dir, "css", "style.css"), "body{color:red}");
+    for (const f of ["index.html", "hwp.html", "privacy.html", "404.html"]) fs.writeFileSync(path.join(dir, f), '<link rel="stylesheet" href="/css/style.css">');
+    fs.writeFileSync(path.join(dir, "licenses.html"), "<p>css 없음</p>");
+    const name = hashStyles(dir)!;
+    assert.match(name, /^style\.[0-9a-f]{10}\.css$/);
+    assert.ok(!fs.existsSync(path.join(dir, "css", "style.css")), "옛 이름은 남지 않아요");
+    for (const f of ["index.html", "hwp.html", "privacy.html", "404.html"]) assert.equal(fs.readFileSync(path.join(dir, f), "utf8"), `<link rel="stylesheet" href="/css/${name}">`, f);
+    assert.ok(precacheList(dir).includes(`./css/${name}`));
+    assert.match(read("config/sw-plugin.ts"), /hashStyles\(outDir\); \/\/ 목록보다 먼저/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

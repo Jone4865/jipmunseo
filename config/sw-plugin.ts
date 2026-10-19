@@ -19,6 +19,25 @@ export function precacheList(dir: string): string[] {
   return files.map((f) => PAGE_KEY[f] ?? "./" + f);
 }
 
+/**
+ * css/style.css 이름에 내용 해시를 붙여요(css/style.<해시>.css) — 서비스 워커 목록을 만들기 전에.
+ * 페이지는 네트워크 우선인데 같은 출처 파일은 저장본 먼저라, 배포 뒤 처음 열면 이미 깔린 서비스 워커가 옛 style.css 를
+ * 새 HTML·JS 에 붙여요(SOS수첩에서 실제로 아이콘이 300px 로 커짐, world-sos 83b201c). 이름이 바뀌면 옛 저장본에 없으니 새 파일을 받아요.
+ * public/ 의 안내 페이지(hwp·privacy·404)는 Vite 가 손대지 않아서 결과 HTML 을 모두 고쳐요. JS 는 원래 이름에 해시가 있어요.
+ */
+export function hashStyles(dir: string): string | null {
+  const src = path.join(dir, "css", "style.css");
+  if (!fs.existsSync(src)) return null;
+  const name = `style.${createHash("sha256").update(fs.readFileSync(src)).digest("hex").slice(0, 10)}.css`;
+  fs.renameSync(src, path.join(dir, "css", name));
+  for (const page of fs.readdirSync(dir).filter((f) => f.endsWith(".html"))) {
+    const f = path.join(dir, page);
+    fs.writeFileSync(f, fs.readFileSync(f, "utf8").replace(/href="\/css\/style\.css"/g, `href="/css/${name}"`));
+  }
+  if (!fs.readFileSync(path.join(dir, "index.html"), "utf8").includes(`href="/css/${name}"`)) throw new Error("index.html 에서 css/style.css 링크를 못 찾았어요");
+  return name;
+}
+
 export function swPlugin(): Plugin {
   let outDir = "dist";
   return {
@@ -26,6 +45,7 @@ export function swPlugin(): Plugin {
     apply: "build",
     configResolved(c) { outDir = path.resolve(c.root, c.build.outDir); },
     closeBundle() {
+      hashStyles(outDir); // 목록보다 먼저(바뀐 이름이 목록에 들어가게)
       const list = precacheList(outDir);
       const hash = createHash("sha256");
       for (const k of list) {
