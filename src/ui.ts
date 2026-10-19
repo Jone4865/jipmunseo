@@ -75,12 +75,26 @@ export function toast(msg: string): void {
 /* ───── 드롭존 ───── */
 // accept: input accept 문자열, filter(file) → true 면 받음. compact 는 파일이 들어온 뒤 작게.
 export type Dropzone = HTMLDivElement & { setCompact(on: boolean, label?: string): void };
-export function dropzone({ accept, multiple = true, title, sub, onFiles }: { accept: string; multiple?: boolean; title: string; sub: string; onFiles: (files: File[]) => void }): Dropzone {
+/**
+ * 손가락 화면(휴대폰·태블릿)에서는 끌어다 놓을 곳도, 붙여넣을 키도 없어서 '…을 끌어다 놓으세요 / 또는 눌러서 고르기'가 할 일을 가렸어요
+ * → '…을 골라 주세요'로 바꾸고 '눌러서 고르기'·'붙여넣기도 돼요'는 빼요. 마우스 화면은 그대로예요.
+ */
+export function dropText(title: string, sub: string, touch: boolean): { title: string; sub: string } {
+  if (!touch) return { title, sub };
+  return {
+    title: title.replace(/(?:여기에 )?끌어다 놓으세요$/, "골라 주세요"),
+    sub: sub.replace(/^또는 눌러서 고르기(?: · )?/, "").replace(/ · 눌러서 고르기/, "").replace(/ · 붙여넣기(?:\(Ctrl\+V\))?도 돼요$/, ""),
+  };
+}
+const touchFirst = (): boolean => typeof matchMedia === "function" && matchMedia("(hover: none) and (pointer: coarse)").matches;
+
+export function dropzone({ accept, multiple = true, title: title0, sub: sub0, onFiles }: { accept: string; multiple?: boolean; title: string; sub: string; onFiles: (files: File[]) => void }): Dropzone {
+  const { title, sub } = dropText(title0, sub0, touchFirst());
   const input = h("input", { type: "file", accept, multiple: multiple || null, tabindex: "-1", "aria-hidden": "true" });
   const el = h("div", { class: "drop", tabindex: "0", role: "button", "aria-label": title },
     h("span", { html: ICONS.upload, style: "display:contents" }),
     h("div", { class: "drop-title" }, title),
-    h("div", { class: "drop-sub" }, sub),
+    sub ? h("div", { class: "drop-sub" }, sub) : null,
     input) as Dropzone;
   const pick = () => input.click();
   el.addEventListener("click", (e) => { if (e.target !== input) pick(); });

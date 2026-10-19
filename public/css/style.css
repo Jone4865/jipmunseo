@@ -194,6 +194,8 @@ footer a { color: var(--ink); }
 .fsub { font-size: 13px; color: var(--muted); }
 .fsub .bad, .bad { color: var(--bad); }
 .fbtns { display: flex; gap: 4px; flex: none; }
+/* 손가락 화면: 목록의 위로·아래로·빼기와 작은 단추(내려받기·다른 파일·되돌리기)가 40px 이었어요 → 44px */
+@media (pointer: coarse) { .fbtns .icon-btn { width: 44px; height: 44px; } .btn.sm { min-height: 44px; } }
 
 /* 페이지 썸네일 */
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; }
