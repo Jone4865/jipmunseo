@@ -3,14 +3,19 @@
 // 파일 넣는 곳에 닿아 파일 고르기 창이 열리고, '다른 형식으로 저장'을 두 번 누르면 밑에서 올라온 '텍스트' 카드가 골라졌어요.
 // 자판(Enter·Space)으로 누른 것과 스크립트가 만든 누름은 그대로 둬요. 갓생 js/tap.ts 와 같은 방식이에요.
 
-/** 누름 이벤트에서 보는 것만 — 사람이 누른 것(isTrusted)인지, 손가락·마우스(detail 1 이상)인지 자판(detail 0)인지 */
-export interface TapLike { isTrusted: boolean; detail: number }
+/** 누름 이벤트에서 보는 것만 — 사람이 누른 것(isTrusted)인지, 손가락·마우스(detail 1 이상)인지 자판(detail 0)인지, 어디를 눌렀는지 */
+export interface TapLike { isTrusted: boolean; detail: number; target?: EventTarget | null }
+/** contains 만 있으면 돼요(시험에서 DOM 없이 쓰려고) */
+export interface TapScope { contains(other: Node | null): boolean }
 
 export interface TapGuard {
-  /** 지금부터 ms 동안 손가락·마우스 누름을 받지 않아요(이미 더 길게 잡혀 있으면 그대로) */
-  hold(ms?: number): void;
-  /** 받지 않는 동안인지 */
-  active(): boolean;
+  /**
+   * 지금부터 ms 동안 손가락·마우스 누름을 받지 않아요(이미 더 길게 잡혀 있으면 그대로).
+   * scope 를 주면 그 안의 누름만 걸러요 — 목록 줄이 옮겨졌을 때 목록 밖의 '합치기'·'이름순' 같은 단추까지 0.9초 막지 않게(QA 5바퀴)
+   */
+  hold(ms?: number, scope?: TapScope | null): void;
+  /** 받지 않는 동안인지(target 을 주면 그 자리에 걸린 것만 봐요) */
+  active(target?: EventTarget | null): boolean;
   /** 이 누름을 거를지 */
   blocks(e: TapLike): boolean;
 }
@@ -22,18 +27,33 @@ export interface TapGuard {
 export const TAP_HOLD_MS = 900;
 
 export function makeTapGuard(now: () => number = Date.now): TapGuard {
-  let until = 0;
+  // 화면 전체(scope 없음) 하나와 목록마다 하나씩
+  let all = 0;
+  const scoped = new Map<TapScope, number>();
+  const inScope = (target: EventTarget | null | undefined): boolean => {
+    const t = now();
+    for (const [sc, until] of scoped) {
+      if (until <= t) { scoped.delete(sc); continue; }
+      if (target && sc.contains(target as Node)) return true;
+    }
+    return false;
+  };
+  const active = (target?: EventTarget | null): boolean => now() < all || inScope(target);
   return {
-    hold(ms = TAP_HOLD_MS) { until = Math.max(until, now() + ms); },
-    active() { return now() < until; },
-    blocks(e) { return e.isTrusted && e.detail !== 0 && now() < until; },
+    hold(ms = TAP_HOLD_MS, scope = null) {
+      const until = now() + ms;
+      if (!scope) all = Math.max(all, until);
+      else scoped.set(scope, Math.max(scoped.get(scope) ?? 0, until));
+    },
+    active,
+    blocks(e) { return e.isTrusted && e.detail !== 0 && active(e.target); },
   };
 }
 
 /** 이 페이지의 거르개 하나 */
 export const taps = makeTapGuard();
 /** 화면이 바뀌는 동작 뒤에 불러요 */
-export const holdTaps = (ms?: number): void => taps.hold(ms);
+export const holdTaps = (ms?: number, scope?: TapScope | null): void => taps.hold(ms, scope);
 
 /** 문서에 한 번 걸어요(app.ts). 누르는 순간(pointerdown)도 막아 포커스가 밑의 칸으로 옮겨 가거나 칠하기가 시작되지 않게 */
 export function installTapGuard(doc: Document): void {
@@ -43,7 +63,7 @@ export function installTapGuard(doc: Document): void {
     e.stopImmediatePropagation();
   }, true);
   doc.addEventListener("pointerdown", (e) => {
-    if (!e.isTrusted || !taps.active()) return;
+    if (!e.isTrusted || !taps.active(e.target)) return;
     e.preventDefault();
     e.stopImmediatePropagation();
   }, true);

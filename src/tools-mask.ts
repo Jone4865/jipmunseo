@@ -288,7 +288,7 @@ export function mountMask(root: HTMLElement): Mounted {
       box.append(resultItem({ name: outName(s.name, "사본", "pdf"), blob: new Blob([pdf.bytes], { type: "application/pdf" }), extra: s.isPdf ? `${pages.length}쪽 · 이미지 PDF` : "A4 PDF" }));
       out.replaceChildren(box);
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); go2.disabled = false; }
+    finally { prog.hide(); go2.disabled = false; }
   }
 
   return {

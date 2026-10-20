@@ -106,7 +106,7 @@ export function mountBg(root: HTMLElement): Mounted {
       const m = errMsg(e);
       err.show(/fetch|network|Failed to/i.test(m) ? "모델을 받지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요." : /memory|allocation|RangeError/i.test(m) ? "기기 메모리가 부족해요. 더 작은 사진으로 해 주세요." : `배경을 지우지 못했어요. (${m})`);
     } finally {
-      setTimeout(() => prog.hide(), 900); go.disabled = false;
+      prog.hide(); go.disabled = false;
       // 모델을 못 받는 등으로 아직 지운 적이 없으면 '다시 지우기'가 아니라 다시 해 보기로(예전에는 실패해도 '다시 지우기'였어요)
       go.textContent = outBlob ? "다시 지우기" : "다시 해 보기";
     }

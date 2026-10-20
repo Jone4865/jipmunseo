@@ -8,6 +8,7 @@ import { mountBg } from "./tools-bg.js";
 import { mountMask } from "./tools-mask.js";
 import { art } from "./art.js";
 import { toolsForFiles, sayArrows } from "./lib.js";
+import { stampResult } from "./motion.js";
 import { PREF, readPref, writePref, pushRecent, parseRecent } from "./prefs.js";
 
 /** 도구 화면이 돌려주는 것 (없으면 {}) */
@@ -173,6 +174,8 @@ new MutationObserver((recs) => {
     revealIfBelow(res as HTMLElement);
     focusIfLost(res?.querySelector<HTMLElement>("button.primary") ?? null);
     lastSaid = { text: t, at: Date.now() };
+    // 새 결과만 확인 도장을 찍어요(같은 결과를 다시 그릴 때는 위에서 걸러져요)
+    stampResult(res as HTMLElement);
     srStatus.textContent = "";
     setTimeout(() => { srStatus.textContent = t; }, 60);
   }

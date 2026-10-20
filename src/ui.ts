@@ -61,7 +61,8 @@ export function rowAction(container: HTMLElement, rowSel: string, act: () => num
     const to = act();
     // 줄이 옮겨지거나 빠지면 같은 자리로 다른 줄이 와요 — 두 번 톡톡의 두 번째 누름이 다음 파일까지 빼거나 되돌려 놓지 않게.
     // 돌리기처럼 줄이 제자리에 남으면 거르지 않아요 — 예전에는 '오른쪽으로 돌리기'를 빠르게 두 번 눌러도 90°만 돌았어요(버그 5차)
-    if (rowMoved(from, to, before.length, container.querySelectorAll(rowSel).length)) holdTaps();
+    // 거르는 건 그 목록 안의 누름만 — 목록 밖 '합치기'·'이름순'·바닥에 붙은 단추는 바로 받아요(QA 5바퀴)
+    if (rowMoved(from, to, before.length, container.querySelectorAll(rowSel).length)) holdTaps(undefined, container);
     if (!had || to === null) return;
     const rows = container.querySelectorAll<HTMLElement>(rowSel);
     const row = rows[Math.max(0, Math.min(to, rows.length - 1))];
@@ -115,10 +116,32 @@ export function revealIfBelow(el: HTMLElement | null | undefined, block: ScrollL
   el.scrollIntoView({ block, behavior: smooth ? "smooth" : "auto" });
 }
 
+/**
+ * 목록 아래 '합치기'·'PDF 만들기'·'저장하기' 줄을 화면 아래에 붙여 둬요(QA 5바퀴). PDF 40개·사진 50장이면 목록이 6,000~7,500px 라
+ * 넣은 뒤 단추까지 한참 내려야 했어요. 제자리가 화면 안이면 그냥 제자리에 있어요(position: sticky).
+ * 붙어 있는 동안만 바탕을 깔아요(.stuck) — 아래 1px 을 화면 밖에 두고 다 보이는지로 알아요
+ */
+export function stickyActions(...kids: Kid[]): HTMLDivElement {
+  const el = h("div", { class: "actions stick" }, ...kids);
+  if (typeof IntersectionObserver === "function") {
+    new IntersectionObserver(([e]) => {
+      const stuck = e.intersectionRatio > 0 && e.intersectionRatio < 1 && e.boundingClientRect.bottom >= (e.rootBounds?.bottom ?? innerHeight) - 2;
+      el.classList.toggle("stuck", stuck);
+    }, { threshold: [0, 1] }).observe(el);
+  }
+  return el;
+}
+
 /* ───── 토스트 ───── */
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
+/** 알림 자리: 화면 아래에 붙은 단추 줄이 있으면 그 위로 올려요 — 단추 글자를 가리지 않게(버그 5차 '알림이 고정 띠 위 단추를 덮음') */
+export function toastBottom(stuckTop: number | null, viewH: number): string {
+  return stuckTop === null ? "" : `${Math.max(24, Math.round(viewH - stuckTop + 10))}px`;
+}
 export function toast(msg: string): void {
   const t = document.getElementById("toast") as HTMLElement;
+  const bar = [...document.querySelectorAll<HTMLElement>(".actions.stuck")].find((b) => !b.closest("[hidden]"));
+  t.style.bottom = toastBottom(bar ? bar.getBoundingClientRect().top : null, innerHeight);
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(toastTimer);
@@ -189,6 +212,10 @@ export function progress() {
       if (!indet) { const p = Math.round(Math.max(0, Math.min(1, frac)) * 100); fill.style.width = p + "%"; el.setAttribute("aria-valuenow", String(p)); }
       if (msg != null) { text.textContent = msg; el.setAttribute("aria-valuetext", msg); }
     },
+    /**
+     * 일이 끝나면 바로 숨겨요. 예전에는 '완료!'를 0.8초 더 보여 줬는데, 그 사이 결과가 진행 표시 밑에 먼저 나타났다가 숨는 순간
+     * 80px 위로 올라가서, 바로 누른 '내려받기'가 빈 곳에 닿았어요(QA 5바퀴)
+     */
     hide() { el.hidden = true; fill.style.width = "0"; },
   };
 }

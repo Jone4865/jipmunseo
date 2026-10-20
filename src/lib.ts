@@ -136,6 +136,20 @@ export function moveItem<T>(arr: readonly T[], from: number, to: number): T[] {
   return a;
 }
 
+/**
+ * 파일 이름 순서(QA 5바퀴). 휴대폰 파일 고르기는 누른 차례대로 넘겨 줘서 '스캔 1~40'이 섞여 들어와요 — 화살표로 맞추려면 수십 번 눌러야 했어요.
+ * 숫자는 숫자로 비교해요('스캔 2' 다음 '스캔 10'). 이름이 같으면 넣은 순서 그대로
+ */
+const nameCollator = new Intl.Collator("ko", { numeric: true, sensitivity: "base" });
+export function sortByName<T>(arr: readonly T[], name: (x: T) => string): T[] {
+  return arr.map((x, i) => ({ x, i, n: name(x) }))
+    .sort((a, b) => nameCollator.compare(a.n, b.n) || a.i - b.i)
+    .map((e) => e.x);
+}
+/** 이미 이름 순서인지 */
+export const isSortedByName = <T>(arr: readonly T[], name: (x: T) => string): boolean =>
+  arr.every((x, i) => i === 0 || nameCollator.compare(name(arr[i - 1]), name(x)) <= 0);
+
 /** 최대 가로/세로 안에 비율 유지해 맞추기 (확대는 안 함). 0/빈값은 제한 없음 */
 export function fitWithin(w: number, h: number, maxW: number, maxH: number): { width: number; height: number; scaled: boolean } {
   let s = 1;

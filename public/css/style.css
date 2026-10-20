@@ -180,6 +180,10 @@ footer a { color: var(--ink); }
 .icon-btn svg { width: 17px; height: 17px; }
 @media (hover: hover) { .icon-btn.danger:hover:not(:disabled) { color: var(--bad); border-color: var(--bad); } }
 .actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
+/* 긴 목록 아래 단추 줄은 화면 아래에 붙어요(ui.ts stickyActions). 붙어 있는 동안만 매트 색 바탕 */
+.actions.stick { position: sticky; bottom: -1px; z-index: 6; margin: 18px -10px 0; padding: 10px; border-radius: 10px; transition: background-color .15s, box-shadow .15s; }
+.actions.stick.stuck { background: var(--mat-dark); box-shadow: 0 -12px 20px -14px rgba(0,0,0,.6); padding-bottom: calc(11px + env(safe-area-inset-bottom, 0px)); border-radius: 10px 10px 0 0; }
+@media (prefers-reduced-motion: reduce) { .actions.stick { transition: none; } }
 
 /* 파일 목록 */
 .flist { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
@@ -258,7 +262,7 @@ input[type="range"] { width: 100%; accent-color: var(--acc); min-height: 32px; }
 .result h2 svg { width: 22px; height: 22px; color: var(--ok); flex: none; }
 .ritem { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; }
 .ritem:first-of-type { border-top: 0; }
-.pill { display: inline-block; font-size: 13px; font-weight: 800; padding: 0 8px; border-radius: 99px; }
+.pill { display: inline-block; font-size: 13px; font-weight: 800; padding: 0 8px; border-radius: 99px; font-variant-numeric: tabular-nums; text-align: center; }
 .pill.good { background: rgba(21,128,61,.12); color: var(--ok); }
 .pill.bad { background: rgba(194,65,12,.12); color: var(--bad); }
 

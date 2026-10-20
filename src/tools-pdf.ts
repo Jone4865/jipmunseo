@@ -1,8 +1,8 @@
 // PDF 도구: 합치기 / 나누기·페이지 빼기 / 회전·순서
-import { h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
+import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
-import { formatSize, outName, moveItem, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, type CompressMode, type CompressLevel } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, type CompressMode, type CompressLevel } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
 import type { ThumbRenderer } from "./ui.js";
 import type { PdfjsDocument } from "./vendor.js";
@@ -31,14 +31,19 @@ export function mountMerge(root: HTMLElement): Mounted {
   const summary = h("span", { class: "muted" });
   const go = h("button", { type: "button", class: "btn primary big", disabled: true, onclick: run }, "PDF 합치기");
   const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { gen++; files = []; out.replaceChildren(); render(); holdTaps(); focusIfLost(dz); } }, "모두 지우기");
+  // 휴대폰 파일 고르기는 누른 차례대로 넘겨 줘서 '스캔 1~40'이 섞여 들어와요 — 화살표로 맞추려면 수십 번 눌러야 했어요(QA 5바퀴)
+  const sortBtn = h("button", { type: "button", class: "btn ghost sm", title: "파일 이름 순서로 놓아요", onclick: () => {
+    if (isSortedByName(files, (f) => f.file.name)) { toast("이미 이름 순서예요"); return; }
+    files = sortByName(files, (f) => f.file.name); relist(); holdTaps(undefined, listEl);
+  } }, "이름순");
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "합칠 순서"), h("div", { class: "row" }, summary, clearBtn)),
+    h("div", { class: "panel-head" }, h("h2", {}, "합칠 순서"), h("div", { class: "row" }, summary, sortBtn, clearBtn)),
     h("p", { class: "hint", style: "margin:-6px 0 10px" }, moveHint("끌어서 놓거나 화살표 단추로", "화살표 단추로") + " 순서를 바꿀 수 있어요. 책갈피(목차)와 입력 칸은 합친 파일로 따라오지 않아요."),
     listEl);
   const out = h("div");
   const dz = dropzone({ accept: "application/pdf,.pdf", title: "PDF 파일을 여기에 끌어다 놓으세요", sub: "또는 눌러서 고르기 · 여러 개 한꺼번에 가능", onFiles: add });
 
-  root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
+  root.append(dz, err.el, panel, stickyActions(go), prog.el, out);
   /** 순서·파일이 바뀌면 지난 결과는 지금 목록과 달라요 — 예전에는 바꾼 뒤에도 '15쪽짜리 PDF가 만들어졌어요'와 옛 파일 내려받기가 남았어요 */
   const relist = () => { out.replaceChildren(); render(); };
   sortable(listEl, ".fitem", (a, b) => { files = moveItem(files, a, b); relist(); });
@@ -77,6 +82,7 @@ export function mountMerge(root: HTMLElement): Mounted {
     [...listEl.querySelectorAll(".fitem")].at(-1)?.querySelector('[aria-label="아래로"]')?.setAttribute("disabled", "");
     const good = files.filter((f) => f.pages);
     summary.textContent = `${files.length}개 · 모두 ${sumPages(good)}쪽`;
+    sortBtn.hidden = files.length < 2;
     go.disabled = good.length < 2 || files.some((f) => f.pages == null && !f.error);
     go.textContent = good.length < 2 ? "PDF를 2개 이상 넣어 주세요" : `${good.length}개 합치기 (${sumPages(good)}쪽)`;
   }
@@ -95,7 +101,7 @@ export function mountMerge(root: HTMLElement): Mounted {
       out.replaceChildren(h("div", { class: "result", id: "result" }, h("h2", {}, icon("ok"), `${sumPages(good)}쪽짜리 PDF가 만들어졌어요`), resultItem({ name, blob, extra: `${good.length}개 파일 합침` })));
       out.querySelector<HTMLButtonElement>("button.primary")?.focus();
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); render(); }
+    finally { prog.hide(); render(); }
   }
   render();
   return {};
@@ -143,7 +149,7 @@ export function mountSplit(root: HTMLElement): Mounted {
       h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); holdTaps(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "opts" }, h("div", { class: "opt" }, h("span", { class: "lbl" }, "방법"), modeSeg), optKeep, optRange)),
     h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", {}, "페이지"), pickTools), grid),
-    h("div", { class: "actions" }, go));
+    stickyActions(go));
   root.append(dz, err.el, work, prog.el, out);
 
   rangeIn.addEventListener("input", () => {
@@ -270,7 +276,7 @@ export function mountSplit(root: HTMLElement): Mounted {
       }
       prog.set(1, "완료!");
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); update(); }
+    finally { prog.hide(); update(); }
   }
   return { unmount: () => cur?.renderer.destroy() };
 }
@@ -298,7 +304,7 @@ export function mountOrganize(root: HTMLElement): Mounted {
         h("button", { type: "button", class: "btn sm ghost", onclick: () => { items = [...Array(C().pages).keys()].map((idx) => ({ idx, rot: 0 })); edit(); toast("처음 상태로 되돌렸어요"); } }, "처음 상태로"))),
     h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", {}, "페이지"), info),
       h("p", { class: "hint", style: "margin:-6px 0 10px" }, moveHint("썸네일을 끌어서 순서를 바꾸거나, 아래 단추로", "아래 단추로") + " 돌리기 · 옮기기 · 지우기를 할 수 있어요."), grid),
-    h("div", { class: "actions" }, go));
+    stickyActions(go));
   root.append(dz, err.el, work, prog.el, out);
   /** 돌리고 옮기고 지우면 지난번에 저장한 결과는 지금 모습과 달라서 걷어요 */
   const edit = () => { out.replaceChildren(); render(); };
@@ -381,7 +387,7 @@ export function mountOrganize(root: HTMLElement): Mounted {
       // 저장 단추를 누른 뒤 쪽 목록을 다시 그려 초점이 페이지 맨 앞으로 빠지지 않게 내려받기로(합치기와 같게)
       out.querySelector<HTMLButtonElement>("button.primary")?.focus();
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); render(); }
+    finally { prog.hide(); render(); }
   }
   return { unmount: () => cur?.renderer.destroy() };
 }
@@ -409,7 +415,7 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
       h("div", { class: "opts" },
         h("div", { class: "opt" }, h("span", { class: "lbl" }, "방법"), modeSeg, modeHint),
         h("div", { class: "opt" }, h("span", { class: "lbl" }, "얼마나 줄일까요?"), levelSeg, levelHint))),
-    h("div", { class: "actions" }, go));
+    stickyActions(go));
   root.append(dz, err.el, work, prog.el, out);
 
   function sync() {
@@ -487,7 +493,7 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
         notes.length ? h("p", { class: "hint", style: "margin:-4px 0 6px" }, notes.join(" ")) : null,
         resultItem({ name: outName(C().file.name, "줄임", "pdf"), blob, extra: mode === "images" ? "글자 그대로" : `${C().pages}쪽 · 이미지 PDF` })));
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); go.disabled = false; }
+    finally { prog.hide(); go.disabled = false; }
   }
   return { unmount: reset };
 }

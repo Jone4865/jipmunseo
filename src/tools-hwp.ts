@@ -774,7 +774,7 @@ export function mountHwp(root: HTMLElement): Mounted {
         if (cancelled && !pic && !after) after = () => reopen(MSG.cancelled, "info");
         if (after) { prog.hide(); void after(); }
         else if (cancelled) { prog.hide(); out.replaceChildren(); updateOpts(); toast(MSG.cancelled); }
-        else { setTimeout(() => { if (!busy) prog.hide(); }, 800); updateOpts(); }
+        else { prog.hide(); updateOpts(); }
       }
     }
   }

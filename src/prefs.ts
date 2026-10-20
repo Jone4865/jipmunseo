@@ -5,6 +5,7 @@ export const PREF = {
   hwpDpi: "jms.hwp.dpi", hwpBold: "jms.hwp.bold",
   imgFmt: "jms.img.fmt", imgQuality: "jms.img.q", imgMaxW: "jms.img.maxw", imgMaxH: "jms.img.maxh",
   pdfMode: "jms.pdf.mode", pdfLevel: "jms.pdf.level",
+  img2pdfSize: "jms.img2pdf.size", img2pdfMargin: "jms.img2pdf.margin",
   recent: "jms.recent",
 } as const;
 

@@ -82,8 +82,8 @@ describe("이미지 도구 — 목록·설정을 바꾸면 옛 결과를 걷어�
   });
   it("쪽 크기·여백, 형식·화질·최대 크기를 바꿔도", () => {
     const s = read("src/tools-img.ts");
-    expect(s).toMatch(/\(v\) => \{ pageSize = v; out\.replaceChildren\(\); \}/);
-    expect(s).toMatch(/\(v\) => \{ margin = v; out\.replaceChildren\(\); \}/);
+    expect(s).toMatch(/\(v\) => \{ pageSize = v; out\.replaceChildren\(\);/);
+    expect(s).toMatch(/\(v\) => \{ margin = v; out\.replaceChildren\(\);/);
     expect(s).toMatch(/writePref\(PREF\.imgFmt, v\); syncQ\(\); out\.replaceChildren\(\);/);
     expect(s).toMatch(/qVal\.textContent = `\$\{quality\}%`; out\.replaceChildren\(\);/);
   });

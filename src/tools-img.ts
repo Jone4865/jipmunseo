@@ -1,8 +1,8 @@
 // 이미지 도구: 이미지→PDF / 압축·변환·크기 / 사진 정보(EXIF) 지우기
-import { type SegOption, h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
+import { type SegOption, h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref, intPref, sizePref } from "./prefs.js";
-import { formatSize, outName, moveItem, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord } from "./lib.js";
 import { vendorImport, type ExifrModule, type Exifr, type ExifData } from "./vendor.js";
 import type { Mounted } from "./app.js";
 import type { PageSize } from "./lib.js";
@@ -45,6 +45,12 @@ function imageList({ orderable }: { orderable: boolean }) {
     remove(i: number) { const [x] = items.splice(i, 1); if (x?.thumb) URL.revokeObjectURL(x.thumb); api.onEdit(); api.render(); },
     clear() { items.forEach((x) => x.thumb && URL.revokeObjectURL(x.thumb)); items = []; api.onEdit(); api.render(); },
     move(from: number, to: number) { items = moveItem(items, from, to); api.onEdit(); api.render(); },
+    /** 파일 이름 순서로(QA 5바퀴). 이미 그 순서면 false */
+    sortByName(): boolean {
+      if (isSortedByName(items, (x) => x.file.name)) return false;
+      items = sortByName(items, (x) => x.file.name); api.onEdit(); api.render();
+      return true;
+    },
     render(): void {
       el.replaceChildren(...items.map((it, i) => h("li", { class: "fitem", draggable: orderable ? "true" : null, dataset: { k: "i" + it.id } },
         orderable ? h("span", { class: "handle", html: ICONS.grip, title: "끌어서 순서 바꾸기" }) : null,
@@ -73,7 +79,8 @@ const isDecoded = (it: ImgItem) => it.w > 0 && !it.error;
 
 /* ═════════ 4. 이미지 → PDF ═════════ */
 export function mountImgToPdf(root: HTMLElement): Mounted {
-  let pageSize: PageSize = "a4", margin = "0";
+  // 쪽 크기·여백은 지난번에 고른 값으로 시작해요(prefs.ts, QA 5바퀴 — 매번 '사진 원본 크기'·'좁게'를 다시 골라야 했어요)
+  let pageSize: PageSize = pickPref(readPref(PREF.img2pdfSize), ["a4", "original"] as const, "a4"), margin: string = pickPref(readPref(PREF.img2pdfMargin), ["0", "10", "20"] as const, "0");
   const err = alertBox();
   const prog = progress();
   const out = h("div");
@@ -81,13 +88,18 @@ export function mountImgToPdf(root: HTMLElement): Mounted {
   const dz = dropzone({ accept: IMG_ACCEPT, title: "사진을 여기에 끌어다 놓으세요", sub: "JPG · PNG · WebP · HEIC · 눌러서 고르기 · 붙여넣기(Ctrl+V)도 돼요", onFiles: add });
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "PDF 만들기");
   const count = h("span", { class: "muted" });
+  // 휴대폰 파일 고르기는 누른 차례대로 넘겨 줘서 'IMG_0001~0050'이 섞여 들어와요 — 한 번에 이름 순서로
+  const sortBtn = h("button", { type: "button", class: "btn ghost sm", title: "파일 이름 순서로 놓아요", onclick: () => {
+    if (!list.sortByName()) { toast("이미 이름 순서예요"); return; }
+    holdTaps(undefined, list.el);
+  } }, "이름순");
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "쪽 순서"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); holdTaps(); focusIfLost(dz); } }, "모두 지우기"))),
+    h("div", { class: "panel-head" }, h("h2", {}, "쪽 순서"), h("div", { class: "row" }, count, sortBtn, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); holdTaps(); focusIfLost(dz); } }, "모두 지우기"))),
     list.el,
     h("div", { class: "opts", style: "margin-top:16px" },
-      h("div", { class: "opt" }, h("span", { class: "lbl" }, "쪽 크기"), seg<PageSize>([{ value: "a4", label: "A4 (가로세로 자동)" }, { value: "original", label: "사진 원본 크기" }], pageSize, (v) => { pageSize = v; out.replaceChildren(); })),
-      h("div", { class: "opt" }, h("span", { class: "lbl" }, "여백"), seg([{ value: "0", label: "없음" }, { value: "10", label: "좁게" }, { value: "20", label: "넓게" }], margin, (v) => { margin = v; out.replaceChildren(); }))));
-  root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
+      h("div", { class: "opt" }, h("span", { class: "lbl" }, "쪽 크기"), seg<PageSize>([{ value: "a4", label: "A4 (가로세로 자동)" }, { value: "original", label: "사진 원본 크기" }], pageSize, (v) => { pageSize = v; out.replaceChildren(); writePref(PREF.img2pdfSize, v); })),
+      h("div", { class: "opt" }, h("span", { class: "lbl" }, "여백"), seg([{ value: "0", label: "없음" }, { value: "10", label: "좁게" }, { value: "20", label: "넓게" }], margin, (v) => { margin = v; out.replaceChildren(); writePref(PREF.img2pdfMargin, v); }))));
+  root.append(dz, err.el, panel, stickyActions(go), prog.el, out);
   // 사진을 더하거나 빼거나 순서·쪽 크기·여백을 바꾸면 지난 결과는 지금 모습과 달라요 — 예전엔 옛 PDF 내려받기가 그대로 남았어요(합치기와 같게)
   list.onEdit = () => out.replaceChildren();
 
@@ -96,6 +108,7 @@ export function mountImgToPdf(root: HTMLElement): Mounted {
     panel.hidden = !n;
     dz.setCompact(n > 0, "사진 더 넣기");
     count.textContent = `${n}장`;
+    sortBtn.hidden = n < 2;
     const busy = list.items.some((x) => !x.w && !x.error);
     go.disabled = !ok || busy;
     go.textContent = !n ? "사진을 넣어 주세요" : busy ? "사진 여는 중…" : `${ok}장으로 PDF 만들기`;
@@ -130,7 +143,7 @@ export function mountImgToPdf(root: HTMLElement): Mounted {
       const name = outName(its[0].file.name, its.length > 1 ? `외${its.length - 1}장` : "", "pdf");
       out.replaceChildren(h("div", { class: "result", id: "result" }, h("h2", {}, icon("ok"), `${its.length}쪽짜리 PDF가 만들어졌어요`), resultItem({ name, blob: new Blob([bytes], { type: "application/pdf" }) })));
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); list.onChange(); }
+    finally { prog.hide(); list.onChange(); }
   }
   return { onPaste: add, unmount: () => list.clear() };
 }
@@ -175,7 +188,7 @@ export function mountCompress(root: HTMLElement): Mounted {
       h("div", { class: "opt" }, h("span", { class: "lbl" }, "최대 크기 (px, 비율 유지)"), h("div", { class: "row" }, maxW, h("span", { class: "muted" }, "×"), maxH),
         h("div", { class: "row", style: "margin-top:8px" }, ...[["1920", "FHD"], ["1280", "1280"], ["800", "800"]].map(([v, l]) => h("button", { type: "button", class: "btn sm", onclick: () => { maxW.value = v; maxH.value = v; saveMax(); } }, l)),
           h("button", { type: "button", class: "btn sm ghost", onclick: () => { maxW.value = ""; maxH.value = ""; saveMax(); } }, "그대로")))));
-  root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
+  root.append(dz, err.el, panel, stickyActions(go), prog.el, out);
   // 사진을 더하거나 빼거나 형식·화질·크기를 바꾸면 지난 결과는 지금 설정과 달라요(옛 결과·내려받기를 걷어요)
   list.onEdit = () => out.replaceChildren();
 
@@ -254,7 +267,7 @@ export function mountCompress(root: HTMLElement): Mounted {
       if (results.some((r) => r.it.file.type === "image/gif")) box.append(h("p", { class: "hint" }, "움직이는 GIF는 첫 장면만 남아요."));
       out.replaceChildren(box);
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); list.onChange(); }
+    finally { prog.hide(); list.onChange(); }
   }
   syncQ();
   return { onPaste: add, unmount: () => list.clear() };
@@ -301,7 +314,7 @@ export function mountExif(root: HTMLElement): Mounted {
     h("div", { class: "panel-head" }, h("h2", {}, "찾은 정보"), h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); holdTaps(); focusIfLost(dz); } }, "모두 지우기")),
     list.el, summary,
     h("p", { class: "hint" }, "사진을 브라우저에서 새로 그려 저장하는 방식이라 위치 · 카메라 · 날짜 같은 정보가 모두 빠져요. 사진 방향은 맞게 돌려서 저장해요. JPG는 화질 95%로 저장하고, 색 프로필이 빠져서 넓은 색영역 사진은 색이 조금 달라질 수 있어요."));
-  root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
+  root.append(dz, err.el, panel, stickyActions(go), prog.el, out);
   list.onEdit = () => out.replaceChildren(); // 사진을 더하거나 빼면 지난 결과를 걷어요
 
   list.onChange = () => {
@@ -366,7 +379,7 @@ export function mountExif(root: HTMLElement): Mounted {
       if (results.some((r) => r.shrunk)) box.append(h("p", { class: "hint" }, "이 기기가 한 번에 다룰 수 있는 크기보다 큰 사진은 해상도가 줄어요. 원래 크기가 필요하면 PC에서 해 주세요."));
       out.replaceChildren(box);
     } catch (e) { err.show(errMsg(e)); }
-    finally { setTimeout(() => prog.hide(), 800); list.onChange(); }
+    finally { prog.hide(); list.onChange(); }
   }
   return { onPaste: add, unmount: () => list.clear() };
 }

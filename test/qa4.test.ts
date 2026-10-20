@@ -25,7 +25,7 @@ describe("두 번 톡톡 거르기(tap.ts)", () => {
     t = 1500; expect(g.active()).toBe(true);
   });
   it("줄이 옮겨지거나 빠질 때, 화면이 바뀔 때, 작업 칸이 닫힐 때 걸어요", () => {
-    expect(read("src/ui.ts")).toMatch(/const to = act\(\);[\s\S]{0,400}holdTaps\(\);/);
+    expect(read("src/ui.ts")).toMatch(/const to = act\(\);[\s\S]{0,500}holdTaps\(undefined, container\);/);
     expect(read("src/app.ts")).toMatch(/installTapGuard\(document\);/);
     expect(read("src/app.ts")).toMatch(/if \(!first\) holdTaps\(\);/);
     expect(read("src/tools-pdf.ts").match(/reset\(\); holdTaps\(\); focusIfLost\(dz\);/g)).toHaveLength(3);

@@ -18,5 +18,8 @@
     "vitest": "5.0.4"
   },
   "license": "AGPL-3.0-only",
-  "repository": "https://github.com/Jone4865/jipmunseo"
+  "repository": "https://github.com/Jone4865/jipmunseo",
+  "dependencies": {
+    "animejs": "3.2.2"
+  }
 }
