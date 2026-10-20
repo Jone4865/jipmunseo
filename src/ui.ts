@@ -62,6 +62,38 @@ export function rowAction(container: HTMLElement, rowSel: string, act: () => num
   };
 }
 
+/**
+ * 누른 단추가 숨거나 사라지면('다른 PDF'·'모두 지우기'로 작업 칸이 닫힘, 파일을 넣어 파일 넣는 곳이 숨음, '그만두기')
+ * 초점이 문서 맨 앞으로 빠져서 탭 키를 처음부터 눌러야 했어요 → 초점을 잃었을 때만 to 로 옮겨요.
+ * 마우스·손가락으로 누른 사람의 화면은 움직이지 않게(preventScroll)
+ */
+export function focusIfLost(to: HTMLElement | null | undefined): void {
+  const a = document.activeElement;
+  if (a && a !== document.body && a.isConnected && !(a as HTMLElement).closest("[hidden]")) return;
+  if (to && to.isConnected && !to.closest("[hidden]")) to.focus({ preventScroll: true });
+}
+/**
+ * 단추를 끄기 전에 그 단추에 초점이 있었으면 alt 로 옮겨요 — 꺼진 단추는 초점을 가질 수 없어서 마지막 '되돌리기'·끝 쪽의 '뒤 쪽'을
+ * 키보드로 누르면 초점이 문서 맨 앞으로 빠졌어요
+ */
+export function setDisabledKeepingFocus(btn: HTMLButtonElement, off: boolean, alt: () => HTMLElement | null | undefined): void {
+  const had = off && !btn.disabled && document.activeElement === btn;
+  btn.disabled = off;
+  if (had) alt()?.focus({ preventScroll: true });
+}
+/**
+ * 내려받기·ZIP·보내기 단추를 빠르게 두 번 누르면 같은 파일이 두 번 받아졌고, 보내기는 첫 공유 창이 떠 있는 동안 두 번째가 실패해
+ * '공유하지 못했어요'가 떴어요 → 일이 끝나고 1초까지는 다시 받지 않아요
+ */
+export function once<A extends unknown[]>(fn: (...a: A) => unknown, ms = 1000): (...a: A) => Promise<void> {
+  let busy = false;
+  return async (...a) => {
+    if (busy) return;
+    busy = true;
+    try { await fn(...a); } finally { setTimeout(() => { busy = false; }, ms); }
+  };
+}
+
 /* ───── 토스트 ───── */
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export function toast(msg: string): void {
@@ -161,7 +193,7 @@ export function download(blob: Blob, name: string): void {
 
 /** 결과 한 줄: 이름, 크기, (부가정보), 내려받기 버튼 */
 export function resultItem({ name, blob, extra, thumb }: { name: string; blob: Blob; extra?: Kid; thumb?: Node | null }): HTMLDivElement {
-  const btn = h("button", { type: "button", class: "btn sm primary", onclick: () => download(blob, name) }, icon("dl"), "내려받기");
+  const btn = h("button", { type: "button", class: "btn sm primary", onclick: once(() => download(blob, name)) }, icon("dl"), "내려받기");
   btn.dataset.name = name;
   return h("div", { class: "ritem" },
     thumb || null,

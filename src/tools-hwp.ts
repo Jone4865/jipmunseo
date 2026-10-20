@@ -8,7 +8,7 @@
 //  - 화질(150·200·300dpi)과 굵은 글꼴 켜기는 이 브라우저에 기억해요(localStorage, 설정 두 개뿐 — 문서·파일 정보는 남기지 않아요).
 //  - 편집 가능하게 바꾸기(convertToEditable)·HWP 로 다시 저장은 부르지 않아요(타입에도 없어요).
 // 설계: _workspace/review/HWP_SPEC.md (4·5·6·7·12장)
-import { h, icon, dropzone, progress, alertBox, resultItem, seg, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, type Seg } from "./ui.js";
+import { h, icon, dropzone, progress, alertBox, resultItem, seg, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, once, focusIfLost, setDisabledKeepingFocus, type Seg } from "./ui.js";
 import { PREF, readPref, writePref } from "./prefs.js";
 import { formatSize, parseRanges, rangesToSet } from "./lib.js";
 import { sniffHwp, distributionFlags, hwpPolicy, hwpErrorCode, pdfEstimateKB, pngEstimateKB, maxExportPages, type HwpSniff, type HwpPolicy, type HwpDpi } from "./hwp-lib.js";
@@ -188,14 +188,14 @@ export function mountHwp(root: HTMLElement): Mounted {
   pwIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); void submitPassword(); } });
   const pwName = h("b", { style: "color:var(--ink)" });
   const pwPanel = h("div", { class: "panel hwp-pw", hidden: true },
-    h("div", { class: "panel-head" }, h("div", { class: "muted" }, pwName), h("button", { type: "button", class: "btn ghost sm", onclick: () => reset(true) }, "다른 파일")),
+    h("div", { class: "panel-head" }, h("div", { class: "muted" }, pwName), h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(true); focusIfLost(dz); } }, "다른 파일")),
     h("p", { style: "margin:0 0 10px" }, "암호가 걸린 문서예요. 문서를 보낸 사람에게 받은 암호를 넣어 주세요."),
     h("div", { class: "hwp-pw-row" }, pwIn, pwBtn),
     pwBad,
     h("p", { class: "hint" }, "암호는 문서를 여는 데만 쓰고 저장하지 않아요."));
 
   /* 미리보기 */
-  const fileLine = h("div", { class: "muted hwp-file" });
+  const fileLine = h("div", { class: "muted hwp-file", tabindex: "-1" }); // 문서를 열어 파일 넣는 곳이 숨으면 초점을 여기로
   const notices = h("div", { class: "hwp-notices" });
   const prevBtn = h("button", { type: "button", class: "btn sm", onclick: () => go(cur - 1) }, icon("back"), "앞 쪽");
   const nextBtn = h("button", { type: "button", class: "btn sm", onclick: () => go(cur + 1) }, "뒤 쪽", icon("next"));
@@ -261,7 +261,7 @@ export function mountHwp(root: HTMLElement): Mounted {
   const out = h("div");
 
   const viewer = h("div", { class: "panel hwp-viewer", hidden: true },
-    h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => reset(true) }, "다른 파일")),
+    h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(true); focusIfLost(dz); } }, "다른 파일")),
     notices,
     h("div", { class: "hwp-bar" }, pager, zoomSeg),
     stage, chartNote, printNote, boldRow,
@@ -363,6 +363,7 @@ export function mountHwp(root: HTMLElement): Mounted {
     const d = doc;
     dz.hidden = true; pwPanel.hidden = true; viewer.hidden = false;
     fileLine.replaceChildren(h("b", { style: "color:var(--ink)" }, d.name), ` · ${d.info.pages}쪽 · ${formatSize(d.size)}`);
+    focusIfLost(fileLine); // 파일 넣는 곳·암호 칸이 숨어 초점이 문서 맨 앞으로 빠지지 않게
     const reason = d.policy.reason;
     notices.replaceChildren(h("div", { class: "alert info" }, MSG.reading, d.sniff.kind === "hwp3" ? "\n" + MSG.hwp3 : ""));
     if (reason) notices.append(h("div", { class: "alert" }, MSG.reason[reason]));
@@ -386,8 +387,12 @@ export function mountHwp(root: HTMLElement): Mounted {
   function updatePager(): void {
     if (!doc) return;
     pageIn.value = String(cur + 1);
-    prevBtn.disabled = cur <= 0;
-    nextBtn.disabled = cur >= doc.info.pages - 1;
+    // 끝 쪽에서 '뒤 쪽'(첫 쪽에서 '앞 쪽')이 꺼지면 거기 있던 초점은 반대쪽 단추로 — 예전엔 문서 맨 앞으로 빠졌어요
+    const prevOff = cur <= 0, nextOff = cur >= doc.info.pages - 1;
+    if (!prevOff) prevBtn.disabled = false;
+    if (!nextOff) nextBtn.disabled = false;
+    setDisabledKeepingFocus(prevBtn, prevOff, () => (nextOff ? pageIn : nextBtn));
+    setDisabledKeepingFocus(nextBtn, nextOff, () => (prevOff ? pageIn : prevBtn));
   }
   function go(i: number): void {
     if (!doc) return;
@@ -710,10 +715,11 @@ export function mountHwp(root: HTMLElement): Mounted {
         const files = shareFilesFor(d.name, kept, d.info.pages);
         if (files) {
           box.insertBefore(h("div", { class: "hwp-share" },
-            h("button", { type: "button", class: "btn", onclick: async () => {
+            // 두 번 톡톡 누르면 첫 공유 창이 떠 있는 동안 두 번째가 실패해 '공유하지 못했어요'가 떴어요 → 공유 창이 닫히고 1초까지는 다시 열지 않아요
+            h("button", { type: "button", class: "btn", onclick: once(async () => {
               const r = await shareFiles(files);
               if (r === "failed") toast("공유하지 못했어요. 내려받아서 보내 주세요.");
-            } }, h("span", { html: SHARE_ICON, style: "display:contents" }), "카톡 등으로 보내기"),
+            }) }, h("span", { html: SHARE_ICON, style: "display:contents" }), "카톡 등으로 보내기"),
             h("p", { class: "hint" }, "카톡에서 글자가 흐리면 사진 화질을 ‘원본’으로 바꿔 보내 주세요.")), box.querySelector(".hwp-again"));
         } else if (total > SHARE_MAX && typeof navigator.canShare === "function") {
           box.insertBefore(h("p", { class: "hint" }, `${SHARE_MAX}장이 넘으면 ZIP으로 받아서 보내 주세요.`), box.querySelector(".hwp-again"));
@@ -747,7 +753,11 @@ export function mountHwp(root: HTMLElement): Mounted {
     return h("div", { class: "result", id: "result" }, h("h2", {}, icon("ok"), title), item, note ?? null,
       // 암호로 연 문서: 저장한 파일에는 암호가 없어요(설계 밖 안내, 검토 제안)
       doc?.password ? h("p", { class: "hint hwp-pwnote" }, MSG.pwNote) : null,
-      h("button", { type: "button", class: "btn ghost sm hwp-again", onclick: () => { out.replaceChildren(); lastPngs = []; prog.hide(); toggleExport(true); exportBox.scrollIntoView({ block: "nearest" }); } }, "다른 형식으로 저장"));
+      h("button", { type: "button", class: "btn ghost sm hwp-again", onclick: () => {
+        out.replaceChildren(); lastPngs = []; prog.hide(); toggleExport(true); exportBox.scrollIntoView({ block: "nearest" });
+        // 누른 단추가 결과와 함께 사라져 초점이 문서 맨 앞으로 빠졌어요 → 고른 형식 카드로
+        focusIfLost(fmtGroup.querySelector<HTMLElement>('[aria-checked="true"]'));
+      } }, "다른 형식으로 저장"));
   }
   /** Word·텍스트: 원본과 다른 점(12-4-4 문구). 늘 붙는 줄(tail)이 있으면 끝에 */
   function diffNote(w: Warn, tail: string | null): HTMLElement | null {

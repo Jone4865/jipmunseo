@@ -1,5 +1,5 @@
 // 6. 사진 배경 지우기 — @imgly/background-removal (기기 안에서 AI 실행)
-import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, decodeImage, drawToCanvas, canvasToBlob } from "./ui.js";
+import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, decodeImage, drawToCanvas, canvasToBlob, focusIfLost } from "./ui.js";
 import { formatSize, outName } from "./lib.js";
 import { vendorImport, type BgRemovalModule } from "./vendor.js";
 import type { Mounted } from "./app.js";
@@ -28,7 +28,7 @@ export function mountBg(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "배경 지우기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, h("div", { class: "muted", id: "bg-file" }), h("button", { type: "button", class: "btn ghost sm", onclick: reset }, "다른 사진")),
+      h("div", { class: "panel-head" }, h("div", { class: "muted", id: "bg-file", tabindex: "-1" }), h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 사진")),
       h("div", { class: "bg-stage" },
         h("div", { class: "bg-pane" }, h("div", { class: "lbl" }, "원본"), before),
         h("div", { class: "bg-pane" }, h("div", { class: "lbl" }, "결과"), after)),
@@ -37,7 +37,10 @@ export function mountBg(root: HTMLElement): Mounted {
     h("div", { class: "actions" }, go));
   root.append(note, dz, err.el, work, prog.el, out);
 
+  /** 사진을 여는 중에 다른 사진을 고르면 늦게 끝난 쪽이 이겨서, 나중에 고른 사진 대신 먼저 고른 사진이 남을 수 있었어요 */
+  let loadGen = 0;
   function reset() {
+    loadGen++;
     if (srcURL) URL.revokeObjectURL(srcURL);
     if (outURL) URL.revokeObjectURL(outURL);
     file = srcURL = outBlob = outURL = null;
@@ -49,21 +52,25 @@ export function mountBg(root: HTMLElement): Mounted {
     err.hide();
     if (!filterFiles([f], ["image", "heic"], LIMITS.bgFile, (m) => err.show(m)).length) return;
     reset();
+    const g = loadGen;
     try {
       // HEIC 등은 미리 PNG 로 풀어서 넘겨요 (방향도 맞춰서)
       const img = await decodeImage(f);
+      if (g !== loadGen) { img.close(); return; }
       const c = drawToCanvas(img, img.width, img.height);
       img.close();
       const blob = await canvasToBlob(c, "image/png");
       c.width = c.height = 0;
+      if (g !== loadGen) return;
       file = { name: f.name, size: f.size, blob };
       srcURL = URL.createObjectURL(blob);
       before.replaceChildren(h("img", { src: srcURL, alt: "원본 사진" }));
       after.replaceChildren(h("span", { class: "muted", style: "font-size:13px" }, "아직 안 지웠어요"));
       (document.getElementById("bg-file") as HTMLElement).replaceChildren(h("b", { style: "color:var(--text)" }, f.name), ` · ${formatSize(f.size)}`);
       dz.hidden = true; work.hidden = false;
+      focusIfLost(document.getElementById("bg-file")); // 파일 넣는 곳이 숨어 초점이 문서 맨 앞으로 빠지지 않게
       go.disabled = false; go.textContent = "배경 지우기";
-    } catch (e) { err.show(errMsg(e)); }
+    } catch (e) { if (g === loadGen) err.show(errMsg(e)); }
   }
 
   async function run() {

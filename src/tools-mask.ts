@@ -1,7 +1,7 @@
 // 9. 서류 사본 가리기 · "OO 제출용" 워터마크 — 신분증·통장·등본 사본을 보내기 전에, 이 기기 안에서
 //  - 가릴 곳을 끌어서 검은 네모로 칠해요. 저장할 때 그림 자체에 칠하니 밑의 글자는 결과에 남지 않아요.
 //  - PDF 는 쪽마다 그림으로 그려서 칠하므로 결과도 이미지 PDF 예요(글자 선택 안 됨 = 가린 글자도 못 꺼냄).
-import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, openPdfjs, renderPdfPage } from "./ui.js";
+import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, openPdfjs, renderPdfPage, focusIfLost, setDisabledKeepingFocus } from "./ui.js";
 import { formatSize, kindOf, outName, normRect, rectAt, watermarkLines, watermarkMetrics, kstDateLabel, mmToPt, type Rect, type WatermarkSize } from "./lib.js";
 import type { Mounted } from "./app.js";
 
@@ -33,7 +33,7 @@ export function mountMask(root: HTMLElement): Mounted {
     accept: "image/*,.heic,.heif,application/pdf,.pdf", multiple: false,
     title: "가릴 사진이나 PDF를 끌어다 놓으세요", sub: `신분증·통장·등본 사본 · JPG · PNG · HEIC · PDF(${MAX_PAGES}쪽까지)`, onFiles: (f) => load(f[0]),
   });
-  const canvas = h("canvas", { class: "mask-canvas", role: "img", "aria-label": "가릴 곳을 끌어서 네모로 칠하는 곳" });
+  const canvas = h("canvas", { class: "mask-canvas", role: "img", "aria-label": "가릴 곳을 끌어서 네모로 칠하는 곳", tabindex: "-1" });
   const stage = h("div", { class: "mask-stage" }, canvas);
   const pageInfo = h("span", { class: "muted" });
   const prevBtn = h("button", { type: "button", class: "btn sm", onclick: () => go(cur - 1) }, icon("back"), "앞 쪽");
@@ -44,7 +44,7 @@ export function mountMask(root: HTMLElement): Mounted {
   // 오히려 남아 있던 다른 네모가 지워졌어요
   const undoBtn = h("button", { type: "button", class: "btn sm", onclick: () => { const p = page(), prev = p?.history.pop(); if (!p || !prev) return; p.masks = prev; changed(); } }, "되돌리기");
   const clearBtn = h("button", { type: "button", class: "btn sm ghost", onclick: () => { const p = page(); if (!p?.masks.length) return; p.history.push(p.masks); p.masks = []; changed(); } }, "이 쪽 가린 곳 모두 지우기");
-  const fileLine = h("div", { class: "muted" });
+  const fileLine = h("div", { class: "muted", tabindex: "-1" }); // 파일을 넣어 파일 넣는 곳이 숨으면 초점을 여기로
 
   const toIn = h("input", { class: "input", type: "text", maxlength: "30", placeholder: "예) OO은행, OO부동산", "aria-label": "제출처", autocomplete: "off" });
   toIn.addEventListener("input", () => { wm.to = toIn.value; changed(); });
@@ -62,7 +62,7 @@ export function mountMask(root: HTMLElement): Mounted {
   const go2 = h("button", { type: "button", class: "btn primary big", onclick: run }, "사본 만들기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: reset }, "다른 파일")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 파일")),
       h("h2", { class: "sub-h" }, "1. 가릴 곳 칠하기"),
       h("p", { class: "hint", style: "margin:0 0 10px" }, "주민등록번호 뒷자리, 주소, 계좌번호처럼 보내면 안 되는 곳을 손가락이나 마우스로 끌어서 검게 칠해요. 칠한 곳을 톡 누르면 지워져요."),
       pager, stage,
@@ -138,10 +138,16 @@ export function mountMask(root: HTMLElement): Mounted {
     out.replaceChildren();
     const n = page()?.masks.length || 0, all = pages.reduce((a, p) => a + p.masks.length, 0);
     count.textContent = pages.length > 1 ? `이 쪽 ${n}곳 · 모두 ${all}곳 가림` : `${n}곳 가림`;
-    undoBtn.disabled = !page()?.history.length; clearBtn.disabled = !n;
+    // 단추가 꺼질 때 거기 있던 초점은 옆 단추(없으면 칠하는 곳)로 — 마지막 '되돌리기'·끝 쪽의 '뒤 쪽'에서 문서 맨 앞으로 빠졌어요.
+    // 켜질 단추를 먼저 켜야 초점을 넘겨받을 수 있어요
+    const undoOff = !page()?.history.length, clearOff = !n, prevOff = cur === 0, nextOff = cur >= pages.length - 1;
+    for (const [b, off] of [[undoBtn, undoOff], [clearBtn, clearOff], [prevBtn, prevOff], [nextBtn, nextOff]] as const) if (!off) b.disabled = false;
+    setDisabledKeepingFocus(undoBtn, undoOff, () => (clearOff ? canvas : clearBtn));
+    setDisabledKeepingFocus(clearBtn, clearOff, () => (undoOff ? canvas : undoBtn));
     pager.hidden = pages.length < 2;
     pageInfo.textContent = `${cur + 1} / ${pages.length}쪽`;
-    prevBtn.disabled = cur === 0; nextBtn.disabled = cur >= pages.length - 1;
+    setDisabledKeepingFocus(prevBtn, prevOff, () => (nextOff ? canvas : nextBtn));
+    setDisabledKeepingFocus(nextBtn, nextOff, () => (prevOff ? canvas : prevBtn));
     schedule();
     ensureFont();
   }
@@ -192,7 +198,13 @@ export function mountMask(root: HTMLElement): Mounted {
   ro.observe(stage);
 
   /* ───── 파일 열기 ───── */
+  /**
+   * 여는 중에 다른 파일을 고르면(아직 보이는 파일 넣는 곳을 다시 누르거나 붙여넣기) 두 파일의 쪽이 한 문서로 섞였어요
+   * (‘report.pdf · 6쪽’인데 첫 쪽이 PDF 6쪽, 사진은 어딘가에) → 열 때마다 번호를 올리고, 늦게 끝난 옛 열기는 버려요
+   */
+  let loadGen = 0;
   function reset(): void {
+    loadGen++;
     for (const p of pages) p.canvas.width = p.canvas.height = 0;
     pages = []; cur = 0; src = null; out.replaceChildren(); err.hide();
     work.hidden = true; dz.hidden = false;
@@ -202,32 +214,42 @@ export function mountMask(root: HTMLElement): Mounted {
     const isPdf = kindOf(file) === "pdf";
     if (!filterFiles([file], ["pdf", "image", "heic"], isPdf ? LIMITS.pdfFile : LIMITS.imageFile, (m) => err.show(m)).length) return;
     reset();
+    const g = loadGen, stale = () => g !== loadGen;
+    const opened: Page[] = []; // 다 열린 뒤에만 pages 로 — 옛 열기가 새 문서에 쪽을 보태지 않게
     try {
       if (isPdf) {
         prog.set(null, "PDF 여는 중…");
         const doc = await openPdfjs(await file.arrayBuffer());
         try {
+          if (stale()) return;
           if (doc.numPages > MAX_PAGES) throw new Error(`PDF는 ${MAX_PAGES}쪽까지만 넣을 수 있어요. 'PDF 나누기'로 필요한 쪽만 골라 주세요.`);
           for (let i = 0; i < doc.numPages; i++) {
             prog.set(i / doc.numPages, `${i + 1}/${doc.numPages}쪽 그리는 중…`);
             const r = await renderPdfPage(doc, i, RENDER_DPI);
-            pages.push({ ...r, masks: [], history: [] });
+            if (stale()) { r.canvas.width = r.canvas.height = 0; return; }
+            opened.push({ ...r, masks: [], history: [] });
           }
         } finally { doc.destroy?.(); }
       } else {
         prog.set(null, "사진 여는 중…");
         const img = await decodeImage(file);
+        if (stale()) { img.close(); return; }
         const c = drawToCanvas(img, img.width, img.height, "#fff");
         img.close();
-        pages.push({ canvas: c, wPt: 0, hPt: 0, masks: [], history: [] });
+        opened.push({ canvas: c, wPt: 0, hPt: 0, masks: [], history: [] });
       }
+      pages = opened;
       src = { name: file.name, size: file.size, isPdf };
       fileLine.replaceChildren(h("b", { style: "color:var(--ink)" }, file.name), ` · ${isPdf ? `${pages.length}쪽 · ` : `${pages[0].canvas.width}×${pages[0].canvas.height} · `}${formatSize(file.size)}`);
       dz.hidden = true; work.hidden = false;
+      focusIfLost(fileLine);
       cur = 0;
       changed();
-    } catch (e) { err.show(errMsg(e)); reset(); }
-    finally { prog.hide(); }
+    } catch (e) { if (stale()) return; err.show(errMsg(e)); reset(); }
+    finally {
+      if (stale()) for (const p of opened) p.canvas.width = p.canvas.height = 0;
+      else prog.hide(); // 옛 열기가 새로 여는 중인 진행 표시를 걷지 않게
+    }
   }
 
   /* ───── 저장 ───── */

@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 // 집문서 — 라우터 (#pdf-merge 같은 주소로 도구마다 공유 가능)
-import { h, ICONS, arrowed, filesFromPaste, toast } from "./ui.js";
+import { h, ICONS, arrowed, filesFromPaste, toast, focusIfLost } from "./ui.js";
 import { mountMerge, mountSplit, mountOrganize, mountPdfCompress } from "./tools-pdf.js";
 import { mountImgToPdf, mountCompress, mountExif } from "./tools-img.js";
 import { mountBg } from "./tools-bg.js";
@@ -69,7 +69,8 @@ function offerTools(files: File[]): void {
   box.replaceChildren(
     h("p", { class: "offer-title" }, `${what}로 무엇을 할까요?`),
     h("div", { class: "offer-tools" }, ...ids.map((id) => h("button", { type: "button", class: "btn", onclick: () => { handoff = files; box.hidden = true; location.hash = id; } }, h("span", {}, ...arrowed(byId[id].title))))), // 단추의 flex 틈이 화살표 양옆에 또 붙어 '이미지   →   PDF'로 벌어지지 않게 한 덩어리로
-    h("button", { type: "button", class: "btn ghost sm", onclick: () => { box.hidden = true; } }, "그만두기"));
+    // '그만두기'로 상자가 숨으면 초점이 문서 맨 앞으로 빠졌어요 → 바로 아래 도구 목록의 첫 도구로
+    h("button", { type: "button", class: "btn ghost sm", onclick: () => { box.hidden = true; focusIfLost($id("tool-grid").querySelector<HTMLElement>("a")); } }, "그만두기"));
   box.hidden = false;
   box.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   (box.querySelector(".offer-tools button") as HTMLElement | null)?.focus({ preventScroll: true });

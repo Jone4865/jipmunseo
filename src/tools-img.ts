@@ -1,5 +1,5 @@
 // 이미지 도구: 이미지→PDF / 압축·변환·크기 / 사진 정보(EXIF) 지우기
-import { type SegOption, h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast } from "./ui.js";
+import { type SegOption, h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
 import { PREF, readPref, writePref, pickPref, intPref, sizePref } from "./prefs.js";
 import { formatSize, outName, moveItem, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord } from "./lib.js";
 import { vendorImport, type ExifrModule, type Exifr, type ExifData } from "./vendor.js";
@@ -22,8 +22,11 @@ function imageList({ orderable }: { orderable: boolean }) {
     get items() { return items; },
     set items(v) { items = v; api.render(); },
     onChange: (): void => {},
+    /** 사진을 더하거나 빼거나 옮기면(지난 결과가 지금 목록과 달라져요) */
+    onEdit: (): void => {},
     add(files: File[], onErr?: (msg: string) => void) {
       const created = files.map((file): ImgItem => ({ id: ++uid, file, thumb: null, w: 0, h: 0, error: null, status: "" }));
+      if (created.length) api.onEdit();
       items.push(...created); api.render();
       const done = (async () => {
         for (const it of created) {
@@ -38,8 +41,9 @@ function imageList({ orderable }: { orderable: boolean }) {
       })();
       return { created, done };
     },
-    remove(i: number) { const [x] = items.splice(i, 1); if (x?.thumb) URL.revokeObjectURL(x.thumb); api.render(); },
-    clear() { items.forEach((x) => x.thumb && URL.revokeObjectURL(x.thumb)); items = []; api.render(); },
+    remove(i: number) { const [x] = items.splice(i, 1); if (x?.thumb) URL.revokeObjectURL(x.thumb); api.onEdit(); api.render(); },
+    clear() { items.forEach((x) => x.thumb && URL.revokeObjectURL(x.thumb)); items = []; api.onEdit(); api.render(); },
+    move(from: number, to: number) { items = moveItem(items, from, to); api.onEdit(); api.render(); },
     render(): void {
       el.replaceChildren(...items.map((it, i) => h("li", { class: "fitem", draggable: orderable ? "true" : null, dataset: { k: "i" + it.id } },
         orderable ? h("span", { class: "handle", html: ICONS.grip, title: "끌어서 순서 바꾸기" }) : null,
@@ -50,8 +54,8 @@ function imageList({ orderable }: { orderable: boolean }) {
           h("div", { class: "fsub" }, it.error ? h("span", { class: "bad" }, it.error) : it.w ? `${it.w}×${it.h} · ${formatSize(it.file.size)}` : "여는 중…", it.status ? h("span", {}, " · ", it.status) : null),
           it.extra || null),
         h("div", { class: "fbtns" },
-          orderable ? iconBtn("up", "위로", rowAction(el, ".fitem", () => { items = moveItem(items, i, i - 1); api.render(); return i - 1; })) : null,
-          orderable ? iconBtn("down", "아래로", rowAction(el, ".fitem", () => { items = moveItem(items, i, i + 1); api.render(); return i + 1; })) : null,
+          orderable ? iconBtn("up", "위로", rowAction(el, ".fitem", () => { api.move(i, i - 1); return i - 1; })) : null,
+          orderable ? iconBtn("down", "아래로", rowAction(el, ".fitem", () => { api.move(i, i + 1); return i + 1; })) : null,
           iconBtn("x", "빼기", rowAction(el, ".fitem", () => { api.remove(i); return items.length ? i : null; }), "danger")))));
       if (orderable) {
         el.firstElementChild?.querySelector('[aria-label="위로"]')?.setAttribute("disabled", "");
@@ -60,7 +64,7 @@ function imageList({ orderable }: { orderable: boolean }) {
       api.onChange();
     },
   };
-  if (orderable) sortable(el, ".fitem", (a, b) => { items = moveItem(items, a, b); api.render(); });
+  if (orderable) sortable(el, ".fitem", (a, b) => api.move(a, b));
   return api;
 }
 
@@ -77,12 +81,14 @@ export function mountImgToPdf(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "PDF 만들기");
   const count = h("span", { class: "muted" });
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "쪽 순서"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); out.replaceChildren(); } }, "모두 지우기"))),
+    h("div", { class: "panel-head" }, h("h2", {}, "쪽 순서"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); focusIfLost(dz); } }, "모두 지우기"))),
     list.el,
     h("div", { class: "opts", style: "margin-top:16px" },
-      h("div", { class: "opt" }, h("span", { class: "lbl" }, "쪽 크기"), seg<PageSize>([{ value: "a4", label: "A4 (가로세로 자동)" }, { value: "original", label: "사진 원본 크기" }], pageSize, (v) => (pageSize = v))),
-      h("div", { class: "opt" }, h("span", { class: "lbl" }, "여백"), seg([{ value: "0", label: "없음" }, { value: "10", label: "좁게" }, { value: "20", label: "넓게" }], margin, (v) => (margin = v)))));
+      h("div", { class: "opt" }, h("span", { class: "lbl" }, "쪽 크기"), seg<PageSize>([{ value: "a4", label: "A4 (가로세로 자동)" }, { value: "original", label: "사진 원본 크기" }], pageSize, (v) => { pageSize = v; out.replaceChildren(); })),
+      h("div", { class: "opt" }, h("span", { class: "lbl" }, "여백"), seg([{ value: "0", label: "없음" }, { value: "10", label: "좁게" }, { value: "20", label: "넓게" }], margin, (v) => { margin = v; out.replaceChildren(); }))));
   root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
+  // 사진을 더하거나 빼거나 순서·쪽 크기·여백을 바꾸면 지난 결과는 지금 모습과 달라요 — 예전엔 옛 PDF 내려받기가 그대로 남았어요(합치기와 같게)
+  list.onEdit = () => out.replaceChildren();
 
   list.onChange = () => {
     const n = list.items.length, ok = list.items.filter(isDecoded).length;
@@ -141,12 +147,13 @@ export function mountCompress(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "변환하기");
   const qVal = h("b", {}, `${quality}%`);
   const q = h("input", { type: "range", min: "10", max: "100", step: "1", value: String(quality), "aria-label": "화질" });
-  q.addEventListener("input", () => { quality = Number(q.value); qVal.textContent = `${quality}%`; });
+  q.addEventListener("input", () => { quality = Number(q.value); qVal.textContent = `${quality}%`; out.replaceChildren(); });
   q.addEventListener("change", () => writePref(PREF.imgQuality, String(quality)));
   const maxW = h("input", { class: "input num", type: "number", min: "1", inputmode: "numeric", placeholder: "그대로", "aria-label": "최대 가로(px)", value: sizePref(readPref(PREF.imgMaxW)) });
   const maxH = h("input", { class: "input num", type: "number", min: "1", inputmode: "numeric", placeholder: "그대로", "aria-label": "최대 세로(px)", value: sizePref(readPref(PREF.imgMaxH)) });
-  const saveMax = () => { writePref(PREF.imgMaxW, sizePref(maxW.value)); writePref(PREF.imgMaxH, sizePref(maxH.value)); };
+  const saveMax = () => { writePref(PREF.imgMaxW, sizePref(maxW.value)); writePref(PREF.imgMaxH, sizePref(maxH.value)); out.replaceChildren(); };
   maxW.addEventListener("change", saveMax); maxH.addEventListener("change", saveMax);
+  maxW.addEventListener("input", () => out.replaceChildren()); maxH.addEventListener("input", () => out.replaceChildren());
   const qOpt = h("div", { class: "opt" }, h("span", { class: "lbl" }, "화질 ", qVal), q, h("div", { class: "hint" }, "70~85%면 눈으로 차이를 느끼기 어려워요. PNG는 화질 설정이 없어요."));
   const fmtOpts: SegOption<string>[] = [
     { value: "keep", label: "원래 형식" },
@@ -155,11 +162,11 @@ export function mountCompress(root: HTMLElement): Mounted {
     { value: "image/webp", label: "WebP" },
     { value: "image/avif", label: "AVIF" },
   ];
-  const fmtSeg = seg(fmtOpts, fmt, (v) => { fmt = v; writePref(PREF.imgFmt, v); syncQ(); });
+  const fmtSeg = seg(fmtOpts, fmt, (v) => { fmt = v; writePref(PREF.imgFmt, v); syncQ(); out.replaceChildren(); });
   const fmtHint = h("div", { class: "hint" });
   const count = h("span", { class: "muted" });
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "사진"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); out.replaceChildren(); } }, "모두 지우기"))),
+    h("div", { class: "panel-head" }, h("h2", {}, "사진"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); focusIfLost(dz); } }, "모두 지우기"))),
     list.el,
     h("div", { class: "opts", style: "margin-top:16px" },
       h("div", { class: "opt" }, h("span", { class: "lbl" }, "저장 형식"), fmtSeg, fmtHint),
@@ -168,6 +175,8 @@ export function mountCompress(root: HTMLElement): Mounted {
         h("div", { class: "row", style: "margin-top:8px" }, ...[["1920", "FHD"], ["1280", "1280"], ["800", "800"]].map(([v, l]) => h("button", { type: "button", class: "btn sm", onclick: () => { maxW.value = v; maxH.value = v; saveMax(); } }, l)),
           h("button", { type: "button", class: "btn sm ghost", onclick: () => { maxW.value = ""; maxH.value = ""; saveMax(); } }, "그대로")))));
   root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
+  // 사진을 더하거나 빼거나 형식·화질·크기를 바꾸면 지난 결과는 지금 설정과 달라요(옛 결과·내려받기를 걷어요)
+  list.onEdit = () => out.replaceChildren();
 
   // 브라우저가 저장할 수 없는 형식은 끄기
   (async () => {
@@ -232,7 +241,7 @@ export function mountCompress(root: HTMLElement): Mounted {
       const box = h("div", { class: "result", id: "result" },
         h("h2", {}, icon("ok"), ...arrowed(`${results.length}장 끝! ${formatSize(before)} → ${formatSize(after)}`), h("span", { class: `pill ${pct > 0 ? "good" : pct < 0 ? "bad" : ""}` }, pct > 0 ? `${pct}% 줄었어요` : pct < 0 ? `${-pct}% 커졌어요` : "거의 그대로")));
       if (results.length > 1) {
-        const zipBtn: HTMLButtonElement = h("button", { type: "button", class: "btn primary", onclick: async () => { zipBtn.disabled = true; try { download(await makeZip(results), `사진-${results.length}장-변환.zip`); } catch (e) { err.show(errMsg(e)); } zipBtn.disabled = false; } }, icon("dl"), "모두 ZIP으로 받기");
+        const zipBtn: HTMLButtonElement = h("button", { type: "button", class: "btn primary", onclick: once(async () => { zipBtn.disabled = true; try { download(await makeZip(results), `사진-${results.length}장-변환.zip`); } catch (e) { err.show(errMsg(e)); } zipBtn.disabled = false; }) }, icon("dl"), "모두 ZIP으로 받기");
         box.append(h("div", { class: "row", style: "margin-bottom:8px" }, zipBtn));
       }
       for (const r of results) {
@@ -288,10 +297,11 @@ export function mountExif(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "정보 지우기");
   const summary = h("div", { class: "alert info", hidden: true });
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "찾은 정보"), h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); out.replaceChildren(); } }, "모두 지우기")),
+    h("div", { class: "panel-head" }, h("h2", {}, "찾은 정보"), h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); focusIfLost(dz); } }, "모두 지우기")),
     list.el, summary,
     h("p", { class: "hint" }, "사진을 브라우저에서 새로 그려 저장하는 방식이라 위치 · 카메라 · 날짜 같은 정보가 모두 빠져요. 사진 방향은 맞게 돌려서 저장해요. JPG는 화질 95%로 저장하고, 색 프로필이 빠져서 넓은 색영역 사진은 색이 조금 달라질 수 있어요."));
   root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);
+  list.onEdit = () => out.replaceChildren(); // 사진을 더하거나 빼면 지난 결과를 걷어요
 
   list.onChange = () => {
     const n = list.items.length;
@@ -346,7 +356,7 @@ export function mountExif(root: HTMLElement): Mounted {
       const clean = results.every((r) => r.after.count === 0);
       const box = h("div", { class: "result", id: "result" }, h("h2", {}, icon("ok"), clean ? `${results.length}장 모두 깨끗해졌어요` : "저장했어요 (일부 정보가 남았어요)"));
       if (results.length > 1) {
-        const zipBtn: HTMLButtonElement = h("button", { type: "button", class: "btn primary", onclick: async () => { zipBtn.disabled = true; try { download(await makeZip(results), `사진-${results.length}장-정보삭제.zip`); } catch (e) { err.show(errMsg(e)); } zipBtn.disabled = false; } }, icon("dl"), "모두 ZIP으로 받기");
+        const zipBtn: HTMLButtonElement = h("button", { type: "button", class: "btn primary", onclick: once(async () => { zipBtn.disabled = true; try { download(await makeZip(results), `사진-${results.length}장-정보삭제.zip`); } catch (e) { err.show(errMsg(e)); } zipBtn.disabled = false; }) }, icon("dl"), "모두 ZIP으로 받기");
         box.append(h("div", { class: "row", style: "margin-bottom:8px" }, zipBtn));
       }
       for (const r of results) box.append(resultItem({ name: r.name, blob: r.blob, thumb: h("img", { class: "fthumb", src: r.it.thumb, alt: "" }), extra: h("span", {},

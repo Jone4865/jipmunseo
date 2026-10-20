@@ -1,5 +1,5 @@
 // PDF 도구: 합치기 / 나누기·페이지 빼기 / 회전·순서
-import { h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob } from "./ui.js";
+import { h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost } from "./ui.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
 import { formatSize, outName, moveItem, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, type CompressMode, type CompressLevel } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
@@ -22,7 +22,7 @@ export function mountMerge(root: HTMLElement): Mounted {
   const listEl = h("ol", { class: "flist", "aria-label": "합칠 PDF 순서" });
   const summary = h("span", { class: "muted" });
   const go = h("button", { type: "button", class: "btn primary big", disabled: true, onclick: run }, "PDF 합치기");
-  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { files = []; out.replaceChildren(); render(); } }, "모두 지우기");
+  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { files = []; out.replaceChildren(); render(); focusIfLost(dz); } }, "모두 지우기");
   const panel = h("div", { class: "panel", hidden: true },
     h("div", { class: "panel-head" }, h("h2", {}, "합칠 순서"), h("div", { class: "row" }, summary, clearBtn)),
     h("p", { class: "hint", style: "margin:-6px 0 10px" }, "끌어서 놓거나 화살표 버튼으로 순서를 바꿀 수 있어요. 책갈피(목차)와 입력 칸은 합친 파일로 따라오지 않아요."),
@@ -125,12 +125,12 @@ export function mountSplit(root: HTMLElement): Mounted {
   const pickTools = h("div", { class: "row" }, selInfo, allBtn, noneBtn);
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "만들기");
   const grid = h("div", { class: "thumbs" });
-  const fileLine = h("div", { class: "muted" });
+  const fileLine = h("div", { class: "muted", tabindex: "-1" }); // 파일을 넣어 파일 넣는 곳이 숨으면 초점을 여기로(focusIfLost)
   const optKeep = h("div", { class: "opt" }, h("span", { class: "lbl" }, "어떻게 저장할까요?"), keepSeg);
   const optRange = h("div", { class: "opt" }, h("label", {}, "페이지 범위"), rangeIn, rangeHint);
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: reset }, "다른 PDF")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "opts" }, h("div", { class: "opt" }, h("span", { class: "lbl" }, "방법"), modeSeg), optKeep, optRange)),
     h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", {}, "페이지"), pickTools), grid),
     h("div", { class: "actions" }, go));
@@ -143,7 +143,9 @@ export function mountSplit(root: HTMLElement): Mounted {
     } else update();
   });
 
+  let loadGen = 0; // 여는 중에 다른 PDF 를 고르면 늦게 끝난 옛 열기는 버려요(나중에 고른 파일이 이겨요)
   function reset() {
+    loadGen++;
     cur?.renderer.destroy(); cur = null; sel.clear(); out.replaceChildren(); err.hide();
     work.hidden = true; dz.hidden = false; rangeIn.value = "";
   }
@@ -152,11 +154,14 @@ export function mountSplit(root: HTMLElement): Mounted {
     err.hide(); out.replaceChildren();
     if (!filterFiles([file], ["pdf"], LIMITS.pdfFile, (m) => err.show(m)).length) return;
     reset();
+    const g = loadGen;
     try {
       const o = await openOne(file, prog);
+      if (g !== loadGen) { o.doc.destroy?.(); return; }
       cur = { file, ...o, renderer: thumbRenderer(o.doc) };
       dz.hidden = true; work.hidden = false;
       fileLine.replaceChildren(h("b", { style: "color:var(--text)" }, file.name), ` · ${C().pages}쪽 · ${formatSize(file.size)}`);
+      focusIfLost(fileLine);
       grid.replaceChildren(...Array.from({ length: C().pages }, (_, i) => {
         const box = h("div", { class: "tbox", dataset: { page: i } }, h("div", { class: "ph" }));
         const card = h("div", { class: "thumb", dataset: { i }, role: "checkbox", "aria-checked": "false", tabindex: "0", "aria-label": `${i + 1}쪽` },
@@ -168,8 +173,8 @@ export function mountSplit(root: HTMLElement): Mounted {
         return card;
       }));
       update();
-    } catch (e) { err.show(errMsg(e)); reset(); }
-    finally { prog.hide(); }
+    } catch (e) { if (g === loadGen) { err.show(errMsg(e)); reset(); } }
+    finally { if (g === loadGen) prog.hide(); }
   }
 
   function syncSel(writeInput: boolean): void {
@@ -268,12 +273,12 @@ export function mountOrganize(root: HTMLElement): Mounted {
   const out = h("div");
   const dz = dropzone({ accept: "application/pdf,.pdf", multiple: false, title: "정리할 PDF 하나를 끌어다 놓으세요", sub: "또는 눌러서 고르기", onFiles: (f) => load(f[0]) });
   const grid = h("div", { class: "thumbs", "aria-label": "페이지 순서" });
-  const fileLine = h("div", { class: "muted" });
+  const fileLine = h("div", { class: "muted", tabindex: "-1" }); // 파일을 넣어 파일 넣는 곳이 숨으면 초점을 여기로(focusIfLost)
   const info = h("span", { class: "muted" });
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "저장하기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: reset }, "다른 PDF")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "row" },
         h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot - 90))); edit(); } }, icon("rotL"), "모두 왼쪽으로"),
         h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot + 90))); edit(); } }, icon("rotR"), "모두 오른쪽으로"),
@@ -286,7 +291,9 @@ export function mountOrganize(root: HTMLElement): Mounted {
   const edit = () => { out.replaceChildren(); render(); };
   sortable(grid, ".thumb", (a, b) => { items = moveItem(items, a, b); edit(); }, { horizontal: true });
 
+  let loadGen = 0; // 여는 중에 다른 PDF 를 고르면 늦게 끝난 옛 열기는 버려요
   function reset() {
+    loadGen++;
     cur?.renderer.destroy(); cur = null; items = []; thumbsByIdx.clear(); out.replaceChildren(); err.hide();
     work.hidden = true; dz.hidden = false;
   }
@@ -294,8 +301,10 @@ export function mountOrganize(root: HTMLElement): Mounted {
     err.hide(); out.replaceChildren();
     if (!filterFiles([file], ["pdf"], LIMITS.pdfFile, (m) => err.show(m)).length) return;
     reset();
+    const g = loadGen;
     try {
       const o = await openOne(file, prog);
+      if (g !== loadGen) { o.doc.destroy?.(); return; }
       cur = { file, ...o, renderer: thumbRenderer(o.doc) };
       items = [...Array(C().pages).keys()].map((idx) => ({ idx, rot: 0 }));
       for (const it of items) {
@@ -305,9 +314,10 @@ export function mountOrganize(root: HTMLElement): Mounted {
       }
       dz.hidden = true; work.hidden = false;
       fileLine.replaceChildren(h("b", { style: "color:var(--text)" }, file.name), ` · ${C().pages}쪽 · ${formatSize(file.size)}`);
+      focusIfLost(fileLine);
       render();
-    } catch (e) { err.show(errMsg(e)); reset(); }
-    finally { prog.hide(); }
+    } catch (e) { if (g === loadGen) { err.show(errMsg(e)); reset(); } }
+    finally { if (g === loadGen) prog.hide(); }
   }
   function render() {
     const n = items.length;
@@ -374,7 +384,7 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
   const prog = progress();
   const out = h("div");
   const dz = dropzone({ accept: "application/pdf,.pdf", multiple: false, title: "줄일 PDF 하나를 끌어다 놓으세요", sub: "또는 눌러서 고르기", onFiles: (f) => load(f[0]) });
-  const fileLine = h("div", { class: "muted" });
+  const fileLine = h("div", { class: "muted", tabindex: "-1" }); // 파일을 넣어 파일 넣는 곳이 숨으면 초점을 여기로(focusIfLost)
   const modeHint = h("div", { class: "hint" });
   const levelHint = h("div", { class: "hint" });
   const modeSeg = seg<CompressMode>([{ value: "images", label: "사진만 줄이기" }, { value: "raster", label: "쪽을 통째로 이미지로" }], mode, (v) => { mode = v; writePref(PREF.pdfMode, v); sync(); });
@@ -382,7 +392,7 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "용량 줄이기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: reset }, "다른 PDF")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "opts" },
         h("div", { class: "opt" }, h("span", { class: "lbl" }, "방법"), modeSeg, modeHint),
         h("div", { class: "opt" }, h("span", { class: "lbl" }, "얼마나 줄일까요?"), levelSeg, levelHint))),
@@ -397,7 +407,9 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
     levelHint.textContent = mode === "images" ? `사진 긴 변 ${p.maxSide}px · 화질 ${Math.round(p.quality * 100)}%` : `${p.dpi}dpi · 화질 ${Math.round(p.quality * 100)}%`;
     out.replaceChildren();
   }
+  let loadGen = 0; // 여는 중에 다른 PDF 를 고르면 늦게 끝난 옛 열기는 버려요
   function reset() {
+    loadGen++;
     cur = null; out.replaceChildren(); err.hide();
     work.hidden = true; dz.hidden = false;
   }
@@ -405,17 +417,20 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
     err.hide(); out.replaceChildren();
     if (!filterFiles([file], ["pdf"], LIMITS.pdfFile, (m) => err.show(m)).length) return;
     reset();
+    const g = loadGen;
     try {
       prog.set(null, "PDF 여는 중…");
       const buf = await file.arrayBuffer();
       const copy = buf.slice(0);
       const { pages } = await runPdf<{ pages: number }>("count", { buf: copy }, [copy]);
+      if (g !== loadGen) return;
       cur = { file, buf, pages };
       fileLine.replaceChildren(h("b", { style: "color:var(--ink)" }, file.name), ` · ${pages}쪽 · ${formatSize(file.size)}`);
       dz.hidden = true; work.hidden = false;
+      focusIfLost(fileLine);
       sync();
-    } catch (e) { err.show(errMsg(e)); reset(); }
-    finally { prog.hide(); }
+    } catch (e) { if (g === loadGen) { err.show(errMsg(e)); reset(); } }
+    finally { if (g === loadGen) prog.hide(); }
   }
 
   async function run() {

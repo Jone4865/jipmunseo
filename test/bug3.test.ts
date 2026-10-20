@@ -45,7 +45,9 @@ test("가리기 되돌리기는 마지막에 한 일을 되돌려요(톡 지우�
   assert.match(m, /history: Rect\[\]\[\]/);
   assert.match(m, /p\.history\.push\(\[\.\.\.p\.masks\]\); p\.masks\.splice\(i, 1\)/);
   assert.match(m, /p\.history\.push\(p\.masks\); p\.masks = \[\]/);
-  assert.match(m, /undoBtn\.disabled = !page\(\)\?\.history\.length/);
+  // 버그 4차: 끄기 전에 초점을 옆 단추로 넘기는 도우미로 바꿨어요(되돌릴 게 없으면 꺼요는 그대로)
+  assert.match(m, /const undoOff = !page\(\)\?\.history\.length/);
+  assert.match(m, /setDisabledKeepingFocus\(undoBtn, undoOff,/);
 });
 
 test("첫 화면 도구 고르기 단추는 화살표를 한 덩어리로, 찾은 정보 칩은 잘리지 않게", () => {

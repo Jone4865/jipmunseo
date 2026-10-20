@@ -32,6 +32,7 @@ https://jipmunseo.pages.dev (Cloudflare Pages · 예전 `*.vercel.app` 주소는
 - 홈 화면 앱·인터넷 없이 다시 열기(2026-10-18): `public/manifest.webmanifest`(바로가기 'HWP 보기 · 변환'·'PDF 합치기'·'신분증 가리기', PC Chrome·Edge 에 설치하면 HWP·HWPX·PDF 를 '연결 프로그램 › 집문서'로 열어 첫 화면 도구 고르기로 넘겨요 — `file_handlers` + `launchQueue`). 서비스 워커 `dist/sw.js`(`config/sw.js` + `config/sw-plugin.ts`, 빌드할 때 미리 저장 목록·버전을 채워요): 화면·JS·CSS·아이콘·안내 페이지만 미리 저장하고, `/vendor/*`(23MB)는 그 도구를 한 번 쓰면 따로(`jms-vendor-v1`, 앱 버전이 바뀌어도 남음) 저장해요. HTML(404)·부분 응답은 저장하지 않고, 화면이 형식 검사로 `cache: "reload"` 다시 받기를 하면 네트워크로 가서 저장본을 고쳐요. 배경 지우기 모델(staticimgly.com)은 건드리지 않아요. `_headers` 에 `sw.js` no-cache, 서비스 워커가 Pretendard 를 받게 `connect-src` 에 같은 경로. 처리방침 '이 브라우저에 기억하는 것'에 Cache Storage 를 더했어요(적용일 10월 18일).
 - 손가락 화면(QA 3바퀴, 2026-10-19): 휴대폰·태블릿에서는 파일 넣는 곳이 '…을 골라 주세요'로 보이고 '눌러서 고르기'·'붙여넣기도 돼요'는 빠져요(끌어다 놓을 곳·붙여넣을 키가 없어요 — `src/ui.ts` `dropText`). 목록의 위로·아래로·빼기와 작은 단추는 44px.
 - 화면 읽기: 도구가 결과를 그리면 제목을 한 번 읽어 줘요(`#sr-status`, '2.1 MB에서 1.0 MB로, 52% 줄었어요' — `sayArrows`). 진행 막대에 이름('진행 상황')과 지금 하는 일(`aria-valuetext`).
+- 버그 찾기 4차(2026-10-20, `test/bug4.test.ts`): 내려받기·사진 ZIP·HWP 쪽 그림 '카톡 등으로 보내기'는 일이 끝나고 1초까지 다시 하지 않아요(`ui.ts` `once` — 두 번 톡톡에 같은 파일 두 번, 보내기는 엉뚱한 '공유하지 못했어요'). 작업 칸이 닫히거나('다른 PDF·파일·사진'·'모두 지우기'·'그만두기') 파일을 넣어 파일 넣는 곳이 숨거나 단추가 꺼지면(마지막 '되돌리기'·끝 쪽) 초점을 파일 넣는 곳·파일 줄·옆 단추로(`focusIfLost`·`setDisabledKeepingFocus`). 여는 중에 다른 파일을 고르면 늦게 끝난 옛 열기를 버려요(신분증 가리기에서 PDF 쪽과 사진이 한 문서로 섞였어요). 이미지 → PDF·압축·정보 지우기에서 사진·설정을 바꾸면 옛 결과를 걷어요.
 
 ## 라이선스
 
