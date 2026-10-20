@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 // 집문서 — 라우터 (#pdf-merge 같은 주소로 도구마다 공유 가능)
-import { h, ICONS, arrowed, filesFromPaste, toast, focusIfLost } from "./ui.js";
+import { h, ICONS, arrowed, filesFromPaste, toast, focusIfLost, revealIfBelow } from "./ui.js";
+import { installTapGuard, holdTaps } from "./tap.js";
 import { mountMerge, mountSplit, mountOrganize, mountPdfCompress } from "./tools-pdf.js";
 import { mountImgToPdf, mountCompress, mountExif } from "./tools-img.js";
 import { mountBg } from "./tools-bg.js";
@@ -19,9 +20,18 @@ function lazyMount(load: () => Promise<(body: HTMLElement) => Mounted | void>): 
     let inner: Mounted | null = null, gone = false;
     body.append(h("p", { class: "hint", style: "color:var(--mat-muted)" }, "도구를 여는 중…"));
     load().then((mount) => { if (gone) return; body.replaceChildren(); inner = mount(body) || {}; })
-      .catch(() => { if (!gone) body.replaceChildren(h("div", { class: "alert" }, "도구를 불러오지 못했어요. 인터넷 연결을 확인하고 새로 고침해 주세요.")); });
+      .catch(() => { if (!gone) body.replaceChildren(loadFailBox(navigator.onLine !== false)); });
     return { unmount: () => { gone = true; inner?.unmount?.(); } };
   };
+}
+/**
+ * 도구 코드를 못 받았을 때. 인터넷이 되는데도 못 받는 건 대개 이 화면을 연 뒤에 집문서가 새로 배포돼 옛 코드 이름이 없어진 경우라
+ * '인터넷 연결을 확인하라'고만 하면 헷갈려요 → 새로 고침 단추를 같이 둬요(주소의 #도구 는 그대로라 같은 도구가 열려요)
+ */
+export function loadFailBox(online: boolean): HTMLElement {
+  return h("div", { class: "alert", role: "alert" },
+    online ? "도구를 불러오지 못했어요. 그사이 집문서가 새로 바뀌었을 수 있어요. 새로 고침하면 열려요." : "도구를 불러오지 못했어요. 인터넷 연결을 확인하고 새로 고침해 주세요.",
+    h("div", { class: "row", style: "margin-top:10px" }, h("button", { type: "button", class: "btn sm", onclick: () => location.reload() }, "새로 고침")));
 }
 const mountHwp = lazyMount(() => import("./tools-hwp.js").then((m) => m.mountHwp));
 const TOOLS: Tool[] = [
@@ -38,6 +48,8 @@ const TOOLS: Tool[] = [
   { id: "exif-clean", title: "사진 정보 지우기", desc: "사진에 숨은 위치(GPS) · 카메라 · 날짜 정보를 확인하고 지워요.", mount: mountExif },
 ];
 const byId = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
+// 화면이 바뀐 바로 뒤의 두 번째 누름을 걸러요(tap.ts)
+installTapGuard(document);
 
 // 아래 id 들은 index.html 에 항상 있음
 const $id = (id: string) => document.getElementById(id) as HTMLElement;
@@ -48,6 +60,12 @@ $id("tool-grid").replaceChildren(
     h("span", { html: art(t.id), style: "display:contents" }),
     h("h3", {}, ...arrowed(t.title)), h("p", {}, t.desc))),
   h("p", { class: "bench-memo" }, "필요한 도구가 없나요? ", h("a", { href: "mailto:cowhddnjsdl0@gmail.com" }, "메일로 알려 주세요", ...arrowed(" → ", true))));
+
+// 첫 화면 아무 곳에나 파일을 떨어뜨리면 쓸 도구를 골라 주는데(offerTools), 그걸 알려 주는 곳이 없었어요 — 마우스 화면에만 적어요
+if (typeof matchMedia === "function" && matchMedia("(hover: hover) and (pointer: fine)").matches) {
+  const bt = document.querySelector(".bench-title");
+  if (bt) bt.textContent = "작업대 · 쓸 도구를 고르거나, 파일을 이 화면에 끌어다 놓으세요";
+}
 
 /* 최근에 연 도구(3개) — 첫 화면 소개 아래 칩. 도구 이름만 기억해요(prefs.ts) */
 let recent = parseRecent(readPref(PREF.recent), new Set(TOOLS.map((t) => t.id)));
@@ -70,7 +88,7 @@ function offerTools(files: File[]): void {
     h("p", { class: "offer-title" }, `${what}로 무엇을 할까요?`),
     h("div", { class: "offer-tools" }, ...ids.map((id) => h("button", { type: "button", class: "btn", onclick: () => { handoff = files; box.hidden = true; location.hash = id; } }, h("span", {}, ...arrowed(byId[id].title))))), // 단추의 flex 틈이 화살표 양옆에 또 붙어 '이미지   →   PDF'로 벌어지지 않게 한 덩어리로
     // '그만두기'로 상자가 숨으면 초점이 문서 맨 앞으로 빠졌어요 → 바로 아래 도구 목록의 첫 도구로
-    h("button", { type: "button", class: "btn ghost sm", onclick: () => { box.hidden = true; focusIfLost($id("tool-grid").querySelector<HTMLElement>("a")); } }, "그만두기"));
+    h("button", { type: "button", class: "btn ghost sm", onclick: () => { box.hidden = true; holdTaps(); focusIfLost($id("tool-grid").querySelector<HTMLElement>("a")); } }, "그만두기"));
   box.hidden = false;
   box.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   (box.querySelector(".offer-tools button") as HTMLElement | null)?.focus({ preventScroll: true });
@@ -99,9 +117,11 @@ const other = $id("other-tools");
 const baseTitle = document.title;
 let active: Mounted | null = null;
 
-function route() {
+function route(first = false) {
   const id = location.hash.slice(1);
   const tool = byId[id];
+  // 도구 카드·'모든 도구'를 두 번 톡톡 누르면 두 번째 누름이 새 화면의 파일 넣는 곳(파일 고르기 창)이나 도구 카드에 닿았어요(처음 열 때는 거르지 않아요)
+  if (!first) holdTaps();
   if (active) { try { active.unmount?.(); } catch {} active = null; }
   if (!tool) {
     view.hidden = true; view.replaceChildren();
@@ -130,8 +150,8 @@ function route() {
   window.scrollTo(0, 0);
 }
 
-window.addEventListener("hashchange", route);
-route();
+window.addEventListener("hashchange", () => route());
+route(true);
 
 /* 화면 읽기: 도구가 결과를 그리면 그 제목('3쪽짜리 PDF가 만들어졌어요')을 한 번 읽어 줘요.
    예전에는 'PDF 합치기'만 저장 단추로 초점을 옮겨서, 다른 도구는 끝난 걸 화면 읽기로 알 수 없었어요.
@@ -149,6 +169,9 @@ new MutationObserver((recs) => {
     c.querySelectorAll(".pill").forEach((p) => p.prepend(", "));
     const t = sayArrows(c.textContent || "");
     if (!t || (t === lastSaid.text && Date.now() - lastSaid.at < 5000)) continue;
+    // 결과가 화면 아래 밖에 생기면 보이게 내리고, '만들기' 단추가 일하는 동안 꺼져 초점이 문서 맨 앞으로 빠졌으면 내려받기 단추로
+    revealIfBelow(res as HTMLElement);
+    focusIfLost(res?.querySelector<HTMLElement>("button.primary") ?? null);
     lastSaid = { text: t, at: Date.now() };
     srStatus.textContent = "";
     setTimeout(() => { srStatus.textContent = t; }, 60);

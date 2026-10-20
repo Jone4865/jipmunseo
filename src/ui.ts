@@ -2,6 +2,7 @@
 import { ICONS } from "./icons.js";
 import { formatSize, kindOf, moveItem, zipWriter, uniqueName } from "./lib.js";
 import { vendorImport, type PdfjsModule, type PdfjsDocument, type HeicToModule, type FflateModule } from "./vendor.js";
+import { holdTaps } from "./tap.js";
 
 /* ───── DOM 도우미 ───── */
 /** h() 속성: class · html · on<이벤트> · dataset · 그 밖의 속성(true 면 빈 값, null/false 면 생략) */
@@ -53,6 +54,8 @@ export function rowAction(container: HTMLElement, rowSel: string, act: () => num
     const had = !!btn && btn === document.activeElement;
     const label = btn?.getAttribute("aria-label") ?? "";
     const to = act();
+    // 줄이 옮겨지거나 빠지면 같은 자리로 다른 줄이 와요 — 두 번 톡톡의 두 번째 누름이 다음 파일까지 빼거나 되돌려 놓지 않게
+    holdTaps();
     if (!had || to === null) return;
     const rows = container.querySelectorAll<HTMLElement>(rowSel);
     const row = rows[Math.max(0, Math.min(to, rows.length - 1))];
@@ -94,6 +97,18 @@ export function once<A extends unknown[]>(fn: (...a: A) => unknown, ms = 1000): 
   };
 }
 
+/**
+ * 진행 표시·결과·펼친 칸이 화면 아래 밖에 생기면 보이게 내려요. 휴대폰에서 화면 맨 아래의 '만들기'·'내보내기'를 누르면
+ * 진행 막대와 결과가 화면 밖에 생겨, 눌러도 아무 일이 없는 것처럼 보였어요. 이미 보이면 움직이지 않아요
+ */
+export function revealIfBelow(el: HTMLElement | null | undefined, block: ScrollLogicalPosition = "nearest"): void {
+  if (!el || !el.isConnected || el.closest("[hidden]")) return;
+  const r = el.getBoundingClientRect();
+  if (r.top <= window.innerHeight - 48) return;
+  const smooth = typeof matchMedia === "function" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ block, behavior: smooth ? "smooth" : "auto" });
+}
+
 /* ───── 토스트 ───── */
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
 export function toast(msg: string): void {
@@ -118,7 +133,7 @@ export function dropText(title: string, sub: string, touch: boolean): { title: s
     sub: sub.replace(/^또는 눌러서 고르기(?: · )?/, "").replace(/ · 눌러서 고르기/, "").replace(/ · 붙여넣기(?:\(Ctrl\+V\))?도 돼요$/, ""),
   };
 }
-const touchFirst = (): boolean => typeof matchMedia === "function" && matchMedia("(hover: none) and (pointer: coarse)").matches;
+export const touchFirst = (): boolean => typeof matchMedia === "function" && matchMedia("(hover: none) and (pointer: coarse)").matches;
 
 export function dropzone({ accept, multiple = true, title: title0, sub: sub0, onFiles }: { accept: string; multiple?: boolean; title: string; sub: string; onFiles: (files: File[]) => void }): Dropzone {
   const { title, sub } = dropText(title0, sub0, touchFirst());
@@ -160,7 +175,9 @@ export function progress() {
   return {
     el,
     set(frac?: number | null, msg?: string | null) {
+      const was = el.hidden;
       el.hidden = false;
+      if (was) revealIfBelow(el);
       const indet = frac == null;
       bar.classList.toggle("indet", indet);
       if (!indet) { const p = Math.round(Math.max(0, Math.min(1, frac)) * 100); fill.style.width = p + "%"; el.setAttribute("aria-valuenow", String(p)); }

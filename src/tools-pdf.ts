@@ -1,5 +1,6 @@
 // PDF 도구: 합치기 / 나누기·페이지 빼기 / 회전·순서
-import { h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost } from "./ui.js";
+import { h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
+import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
 import { formatSize, outName, moveItem, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, type CompressMode, type CompressLevel } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
@@ -12,6 +13,11 @@ type Bytes = Uint8Array<ArrayBuffer>;
 interface Opened { file: File; buf: ArrayBuffer; doc: PdfjsDocument; pages: number; renderer: ThumbRenderer }
 const pdfBlob = (bytes: Bytes) => new Blob([bytes], { type: "application/pdf" });
 const sumPages = (list: { pages: number | null }[]) => list.reduce((a, f) => a + (f.pages || 0), 0);
+/**
+ * 순서 바꾸기 안내: 손가락 화면에서는 끌어서 옮기기가 기기마다 안 되거나 달라서(QA 3바퀴 제안) 되는 방법(화살표 단추)만 적어요.
+ * 예전에는 '끌어서 놓거나'라고 적혀 있어 처음 쓰는 사람이 손잡이를 끌다 막혔어요
+ */
+export const moveHint = (mouse: string, touch: string, isTouch = touchFirst()): string => (isTouch ? touch : mouse);
 
 /* ═════════ 1. PDF 합치기 ═════════ */
 export function mountMerge(root: HTMLElement): Mounted {
@@ -22,10 +28,10 @@ export function mountMerge(root: HTMLElement): Mounted {
   const listEl = h("ol", { class: "flist", "aria-label": "합칠 PDF 순서" });
   const summary = h("span", { class: "muted" });
   const go = h("button", { type: "button", class: "btn primary big", disabled: true, onclick: run }, "PDF 합치기");
-  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { files = []; out.replaceChildren(); render(); focusIfLost(dz); } }, "모두 지우기");
+  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { files = []; out.replaceChildren(); render(); holdTaps(); focusIfLost(dz); } }, "모두 지우기");
   const panel = h("div", { class: "panel", hidden: true },
     h("div", { class: "panel-head" }, h("h2", {}, "합칠 순서"), h("div", { class: "row" }, summary, clearBtn)),
-    h("p", { class: "hint", style: "margin:-6px 0 10px" }, "끌어서 놓거나 화살표 버튼으로 순서를 바꿀 수 있어요. 책갈피(목차)와 입력 칸은 합친 파일로 따라오지 않아요."),
+    h("p", { class: "hint", style: "margin:-6px 0 10px" }, moveHint("끌어서 놓거나 화살표 단추로", "화살표 단추로") + " 순서를 바꿀 수 있어요. 책갈피(목차)와 입력 칸은 합친 파일로 따라오지 않아요."),
     listEl);
   const out = h("div");
   const dz = dropzone({ accept: "application/pdf,.pdf", title: "PDF 파일을 여기에 끌어다 놓으세요", sub: "또는 눌러서 고르기 · 여러 개 한꺼번에 가능", onFiles: add });
@@ -115,8 +121,8 @@ export function mountSplit(root: HTMLElement): Mounted {
     { value: "pick", label: "골라서 빼기" },
     { value: "each", label: "한 쪽씩 나누기" },
     { value: "ranges", label: "범위로 나누기" },
-  ], mode, (v) => { mode = v; update(); });
-  const keepSeg = seg([{ value: "keep", label: "고른 쪽만 새 PDF로" }, { value: "remove", label: "고른 쪽 지우고 저장" }], keep, (v) => { keep = v; update(); });
+  ], mode, (v) => { mode = v; out.replaceChildren(); update(); });
+  const keepSeg = seg([{ value: "keep", label: "고른 쪽만 새 PDF로" }, { value: "remove", label: "고른 쪽 지우고 저장" }], keep, (v) => { keep = v; out.replaceChildren(); update(); });
   const rangeIn = h("input", { class: "input", type: "text", inputmode: "text", placeholder: "예) 1-3, 5, 8-10", "aria-label": "페이지 범위", autocomplete: "off" });
   const rangeHint = h("div", { class: "hint" });
   const selInfo = h("span", { class: "muted" });
@@ -130,13 +136,14 @@ export function mountSplit(root: HTMLElement): Mounted {
   const optRange = h("div", { class: "opt" }, h("label", {}, "페이지 범위"), rangeIn, rangeHint);
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 PDF")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); holdTaps(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "opts" }, h("div", { class: "opt" }, h("span", { class: "lbl" }, "방법"), modeSeg), optKeep, optRange)),
     h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", {}, "페이지"), pickTools), grid),
     h("div", { class: "actions" }, go));
   root.append(dz, err.el, work, prog.el, out);
 
   rangeIn.addEventListener("input", () => {
+    out.replaceChildren(); // 고른 쪽·범위가 바뀌면 지난 결과는 지금 설정과 달라요(합치기·이미지 도구와 같게)
     if (mode === "pick") {
       try { sel = new Set(rangesToSet(parseRanges(rangeIn.value, C().pages))); rangeHint.className = "hint"; syncSel(false); }
       catch (e) { if (rangeIn.value.trim()) { rangeHint.className = "hint bad"; rangeHint.textContent = errMsg(e); update(); } else { sel.clear(); syncSel(false); } }
@@ -177,7 +184,9 @@ export function mountSplit(root: HTMLElement): Mounted {
     finally { if (g === loadGen) prog.hide(); }
   }
 
+  /** 고른 쪽이 바뀌면(썸네일·전체 선택·선택 해제·범위 칸) — 방법·저장 방식을 바꿀 때도 옛 결과를 걷어요. 예전에는 '한 쪽씩 나누기'로 바꿔도 '2쪽짜리 PDF가 만들어졌어요'와 그 내려받기가 남았어요 */
   function syncSel(writeInput: boolean): void {
+    out.replaceChildren();
     grid.querySelectorAll<HTMLElement>(".thumb").forEach((c) => { const on = sel.has(Number(c.dataset.i)); c.classList.toggle("sel", on); c.setAttribute("aria-checked", String(on)); });
     if (writeInput) { rangeIn.value = formatRanges([...sel]); rangeHint.className = "hint"; }
     update();
@@ -278,13 +287,13 @@ export function mountOrganize(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "저장하기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 PDF")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); holdTaps(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "row" },
         h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot - 90))); edit(); } }, icon("rotL"), "모두 왼쪽으로"),
         h("button", { type: "button", class: "btn sm", onclick: () => { items.forEach((it) => (it.rot = normRotation(it.rot + 90))); edit(); } }, icon("rotR"), "모두 오른쪽으로"),
         h("button", { type: "button", class: "btn sm ghost", onclick: () => { items = [...Array(C().pages).keys()].map((idx) => ({ idx, rot: 0 })); edit(); toast("처음 상태로 되돌렸어요"); } }, "처음 상태로"))),
     h("div", { class: "panel" }, h("div", { class: "panel-head" }, h("h2", {}, "페이지"), info),
-      h("p", { class: "hint", style: "margin:-6px 0 10px" }, "썸네일을 끌어서 순서를 바꾸거나, 아래 버튼으로 돌리기 · 옮기기 · 지우기를 할 수 있어요."), grid),
+      h("p", { class: "hint", style: "margin:-6px 0 10px" }, moveHint("썸네일을 끌어서 순서를 바꾸거나, 아래 단추로", "아래 단추로") + " 돌리기 · 옮기기 · 지우기를 할 수 있어요."), grid),
     h("div", { class: "actions" }, go));
   root.append(dz, err.el, work, prog.el, out);
   /** 돌리고 옮기고 지우면 지난번에 저장한 결과는 지금 모습과 달라서 걷어요 */
@@ -392,7 +401,7 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "용량 줄이기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 PDF")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); holdTaps(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "opts" },
         h("div", { class: "opt" }, h("span", { class: "lbl" }, "방법"), modeSeg, modeHint),
         h("div", { class: "opt" }, h("span", { class: "lbl" }, "얼마나 줄일까요?"), levelSeg, levelHint))),

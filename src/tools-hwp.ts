@@ -8,7 +8,8 @@
 //  - 화질(150·200·300dpi)과 굵은 글꼴 켜기는 이 브라우저에 기억해요(localStorage, 설정 두 개뿐 — 문서·파일 정보는 남기지 않아요).
 //  - 편집 가능하게 바꾸기(convertToEditable)·HWP 로 다시 저장은 부르지 않아요(타입에도 없어요).
 // 설계: _workspace/review/HWP_SPEC.md (4·5·6·7·12장)
-import { h, icon, dropzone, progress, alertBox, resultItem, seg, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, once, focusIfLost, setDisabledKeepingFocus, type Seg } from "./ui.js";
+import { h, icon, dropzone, progress, alertBox, resultItem, seg, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, once, focusIfLost, setDisabledKeepingFocus, touchFirst, type Seg } from "./ui.js";
+import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref } from "./prefs.js";
 import { formatSize, parseRanges, rangesToSet } from "./lib.js";
 import { sniffHwp, distributionFlags, hwpPolicy, hwpErrorCode, pdfEstimateKB, pngEstimateKB, maxExportPages, type HwpSniff, type HwpPolicy, type HwpDpi } from "./hwp-lib.js";
@@ -188,7 +189,7 @@ export function mountHwp(root: HTMLElement): Mounted {
   pwIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); void submitPassword(); } });
   const pwName = h("b", { style: "color:var(--ink)" });
   const pwPanel = h("div", { class: "panel hwp-pw", hidden: true },
-    h("div", { class: "panel-head" }, h("div", { class: "muted" }, pwName), h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(true); focusIfLost(dz); } }, "다른 파일")),
+    h("div", { class: "panel-head" }, h("div", { class: "muted" }, pwName), h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(true); holdTaps(); focusIfLost(dz); } }, "다른 파일")),
     h("p", { style: "margin:0 0 10px" }, "암호가 걸린 문서예요. 문서를 보낸 사람에게 받은 암호를 넣어 주세요."),
     h("div", { class: "hwp-pw-row" }, pwIn, pwBtn),
     pwBad,
@@ -202,9 +203,24 @@ export function mountHwp(root: HTMLElement): Mounted {
   const pageIn = h("input", { class: "input num hwp-pagein", type: "number", inputmode: "numeric", min: "1", "aria-label": "쪽 번호" });
   const pageTotal = h("span", { class: "muted" });
   pageIn.addEventListener("change", () => { const n = parseInt(pageIn.value, 10); if (Number.isFinite(n)) go(n - 1); else updatePager(); });
-  pageIn.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); pageIn.blur(); } });
+  // Enter: 그 쪽으로 가요. 예전에는 칸을 놓아(blur) 바꿨는데, 자판으로 쓰는 사람은 초점이 문서 맨 앞으로 빠졌어요 →
+  // 마우스 화면은 칸에 초점을 두고 글자를 골라 두고, 손가락 화면은 화면 자판을 닫으려고 그대로 놓아요
+  pageIn.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (touchFirst()) { pageIn.blur(); return; }
+    const n = parseInt(pageIn.value, 10);
+    if (Number.isFinite(n)) go(n - 1); else updatePager();
+    pageIn.select();
+  });
   const zoomSeg = seg<"fit" | "big">([{ value: "fit", label: "폭 맞춤" }, { value: "big", label: "크게" }], zoom, (v) => { zoom = v; stage.classList.toggle("big", v === "big"); if (raster()) { clearCache(); show(); } });
   const pager = h("div", { class: "row hwp-pager" }, prevBtn, h("span", { class: "hwp-pagebox" }, pageIn, pageTotal), nextBtn);
+  /* 쪽 아래 넘기기: 휴대폰에서 한 쪽을 끝까지 읽고 다음 쪽으로 가려면 쪽 위의 단추까지 다시 올라가야 했어요 → 아래에도 두고, 넘기면 쪽 맨 위로 올려요 */
+  const goBelow = (i: number) => { const was = cur; go(i); if (cur === was) return; holdTaps(); bar.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); };
+  const prevBtn2 = h("button", { type: "button", class: "btn sm", onclick: () => goBelow(cur - 1) }, icon("back"), "앞 쪽");
+  const nextBtn2 = h("button", { type: "button", class: "btn sm", onclick: () => goBelow(cur + 1) }, "뒤 쪽", icon("next"));
+  const pageNow2 = h("span", { class: "muted hwp-pagenow" });
+  const pager2 = h("div", { class: "row hwp-pager hwp-pager-below", role: "group", "aria-label": "쪽 넘기기" }, prevBtn2, pageNow2, nextBtn2);
   const pageImg = h("img", { class: "hwp-page", alt: "", decoding: "async", draggable: "false" });
   const placeholder = h("div", { class: "hwp-ph" }, "그리는 중…");
   const stage = h("div", { class: "hwp-stage" }, placeholder);
@@ -228,7 +244,14 @@ export function mountHwp(root: HTMLElement): Mounted {
   const printNote = h("p", { class: "hwp-print-note" });
 
   /* 내보내기 */
-  const exportBtn = h("button", { type: "button", class: "btn primary", "aria-expanded": "false", onclick: () => toggleExport() }, icon("dl"), "내보내기");
+  const exportBtn = h("button", { type: "button", class: "btn primary", "aria-expanded": "false", onclick: () => {
+    toggleExport();
+    // 두 번 톡톡 누르면 열렸다 바로 닫혔어요. 화면 맨 아래에서 누르면 열린 칸이 화면 밖이라 아무 일이 없는 것처럼 보였어요 → 보이게 올려요
+    holdTaps();
+    if (!exportBox.hidden && exportBox.getBoundingClientRect().top > window.innerHeight * 0.7) {
+      exportArea.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    }
+  } }, icon("dl"), "내보내기");
   const fmtGroup = h("div", { class: "hwp-formats", role: "radiogroup", "aria-label": "저장할 파일 형식" });
   let fmt: ExportFormat = "pdf";
   let range: "all" | "pick" = "all";
@@ -260,11 +283,12 @@ export function mountHwp(root: HTMLElement): Mounted {
   const exportArea = h("div", { class: "hwp-export-area" }, h("div", { class: "actions" }, exportBtn), exportBox);
   const out = h("div");
 
+  const bar = h("div", { class: "hwp-bar" }, pager, zoomSeg);
   const viewer = h("div", { class: "panel hwp-viewer", hidden: true },
-    h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(true); focusIfLost(dz); } }, "다른 파일")),
+    h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(true); holdTaps(); focusIfLost(dz); } }, "다른 파일")),
     notices,
-    h("div", { class: "hwp-bar" }, pager, zoomSeg),
-    stage, chartNote, printNote, boldRow,
+    bar,
+    stage, pager2, chartNote, printNote, boldRow,
     exportArea);
 
   const legal = h("div", { class: "hwp-legal" },
@@ -373,7 +397,7 @@ export function mountHwp(root: HTMLElement): Mounted {
     printNote.textContent = noPrint ? MSG.printNote[reason === "privacy" ? "privacy" : "print"] : "";
     pageIn.max = String(d.info.pages);
     pageTotal.textContent = `/ ${d.info.pages}쪽`;
-    pager.hidden = d.info.pages < 2;
+    pager.hidden = pager2.hidden = d.info.pages < 2;
     stage.classList.toggle("big", zoom === "big");
     // 내보내기: 막힌 형식만 남으면 버튼을 숨겨요
     exportArea.hidden = !EXPORT_FORMATS.some((f) => d.rules[f].ok);
@@ -393,6 +417,11 @@ export function mountHwp(root: HTMLElement): Mounted {
     if (!nextOff) nextBtn.disabled = false;
     setDisabledKeepingFocus(prevBtn, prevOff, () => (nextOff ? pageIn : nextBtn));
     setDisabledKeepingFocus(nextBtn, nextOff, () => (prevOff ? pageIn : prevBtn));
+    pageNow2.textContent = `${cur + 1} / ${doc.info.pages}쪽`;
+    if (!prevOff) prevBtn2.disabled = false;
+    if (!nextOff) nextBtn2.disabled = false;
+    setDisabledKeepingFocus(prevBtn2, prevOff, () => (nextOff ? pageIn : nextBtn2));
+    setDisabledKeepingFocus(nextBtn2, nextOff, () => (prevOff ? pageIn : prevBtn2));
   }
   function go(i: number): void {
     if (!doc) return;
@@ -755,6 +784,7 @@ export function mountHwp(root: HTMLElement): Mounted {
       doc?.password ? h("p", { class: "hint hwp-pwnote" }, MSG.pwNote) : null,
       h("button", { type: "button", class: "btn ghost sm hwp-again", onclick: () => {
         out.replaceChildren(); lastPngs = []; prog.hide(); toggleExport(true); exportBox.scrollIntoView({ block: "nearest" });
+        holdTaps(); // 두 번 톡톡의 두 번째 누름이 결과가 걷힌 자리로 올라온 형식 카드('텍스트')를 골랐어요
         // 누른 단추가 결과와 함께 사라져 초점이 문서 맨 앞으로 빠졌어요 → 고른 형식 카드로
         focusIfLost(fmtGroup.querySelector<HTMLElement>('[aria-checked="true"]'));
       } }, "다른 형식으로 저장"));

@@ -1,5 +1,6 @@
 // 6. 사진 배경 지우기 — @imgly/background-removal (기기 안에서 AI 실행)
 import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, decodeImage, drawToCanvas, canvasToBlob, focusIfLost } from "./ui.js";
+import { holdTaps } from "./tap.js";
 import { formatSize, outName } from "./lib.js";
 import { vendorImport, type BgRemovalModule } from "./vendor.js";
 import type { Mounted } from "./app.js";
@@ -28,7 +29,7 @@ export function mountBg(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "배경 지우기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, h("div", { class: "muted", id: "bg-file", tabindex: "-1" }), h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 사진")),
+      h("div", { class: "panel-head" }, h("div", { class: "muted", id: "bg-file", tabindex: "-1" }), h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); holdTaps(); focusIfLost(dz); } }, "다른 사진")),
       h("div", { class: "bg-stage" },
         h("div", { class: "bg-pane" }, h("div", { class: "lbl" }, "원본"), before),
         h("div", { class: "bg-pane" }, h("div", { class: "lbl" }, "결과"), after)),
@@ -104,7 +105,11 @@ export function mountBg(root: HTMLElement): Mounted {
     } catch (e) {
       const m = errMsg(e);
       err.show(/fetch|network|Failed to/i.test(m) ? "모델을 받지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요." : /memory|allocation|RangeError/i.test(m) ? "기기 메모리가 부족해요. 더 작은 사진으로 해 주세요." : `배경을 지우지 못했어요. (${m})`);
-    } finally { setTimeout(() => prog.hide(), 900); go.disabled = false; go.textContent = "다시 지우기"; }
+    } finally {
+      setTimeout(() => prog.hide(), 900); go.disabled = false;
+      // 모델을 못 받는 등으로 아직 지운 적이 없으면 '다시 지우기'가 아니라 다시 해 보기로(예전에는 실패해도 '다시 지우기'였어요)
+      go.textContent = outBlob ? "다시 지우기" : "다시 해 보기";
+    }
   }
 
   async function paint() {

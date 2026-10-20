@@ -1,5 +1,6 @@
 // 이미지 도구: 이미지→PDF / 압축·변환·크기 / 사진 정보(EXIF) 지우기
 import { type SegOption, h, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
+import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref, intPref, sizePref } from "./prefs.js";
 import { formatSize, outName, moveItem, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord } from "./lib.js";
 import { vendorImport, type ExifrModule, type Exifr, type ExifData } from "./vendor.js";
@@ -81,7 +82,7 @@ export function mountImgToPdf(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "PDF 만들기");
   const count = h("span", { class: "muted" });
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "쪽 순서"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); focusIfLost(dz); } }, "모두 지우기"))),
+    h("div", { class: "panel-head" }, h("h2", {}, "쪽 순서"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); holdTaps(); focusIfLost(dz); } }, "모두 지우기"))),
     list.el,
     h("div", { class: "opts", style: "margin-top:16px" },
       h("div", { class: "opt" }, h("span", { class: "lbl" }, "쪽 크기"), seg<PageSize>([{ value: "a4", label: "A4 (가로세로 자동)" }, { value: "original", label: "사진 원본 크기" }], pageSize, (v) => { pageSize = v; out.replaceChildren(); })),
@@ -166,7 +167,7 @@ export function mountCompress(root: HTMLElement): Mounted {
   const fmtHint = h("div", { class: "hint" });
   const count = h("span", { class: "muted" });
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "사진"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); focusIfLost(dz); } }, "모두 지우기"))),
+    h("div", { class: "panel-head" }, h("h2", {}, "사진"), h("div", { class: "row" }, count, h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); holdTaps(); focusIfLost(dz); } }, "모두 지우기"))),
     list.el,
     h("div", { class: "opts", style: "margin-top:16px" },
       h("div", { class: "opt" }, h("span", { class: "lbl" }, "저장 형식"), fmtSeg, fmtHint),
@@ -297,7 +298,7 @@ export function mountExif(root: HTMLElement): Mounted {
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "정보 지우기");
   const summary = h("div", { class: "alert info", hidden: true });
   const panel = h("div", { class: "panel", hidden: true },
-    h("div", { class: "panel-head" }, h("h2", {}, "찾은 정보"), h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); focusIfLost(dz); } }, "모두 지우기")),
+    h("div", { class: "panel-head" }, h("h2", {}, "찾은 정보"), h("button", { type: "button", class: "btn ghost sm", onclick: () => { list.clear(); holdTaps(); focusIfLost(dz); } }, "모두 지우기")),
     list.el, summary,
     h("p", { class: "hint" }, "사진을 브라우저에서 새로 그려 저장하는 방식이라 위치 · 카메라 · 날짜 같은 정보가 모두 빠져요. 사진 방향은 맞게 돌려서 저장해요. JPG는 화질 95%로 저장하고, 색 프로필이 빠져서 넓은 색영역 사진은 색이 조금 달라질 수 있어요."));
   root.append(dz, err.el, panel, h("div", { class: "actions" }, go), prog.el, out);

@@ -47,12 +47,12 @@ describe("내려받기·ZIP·보내기 두 번 누르기", () => {
 
 describe("초점이 문서 맨 앞으로 빠지지 않아요", () => {
   it("'다른 PDF·파일·사진'·'모두 지우기'로 작업 칸이 닫히면 파일 넣는 곳으로", () => {
-    expect(read("src/tools-pdf.ts").match(/onclick: \(\) => \{ reset\(\); focusIfLost\(dz\); \} \}, "다른 PDF"\)/g)).toHaveLength(3);
-    expect(read("src/tools-pdf.ts")).toMatch(/files = \[\]; out\.replaceChildren\(\); render\(\); focusIfLost\(dz\);/);
-    expect(read("src/tools-img.ts").match(/list\.clear\(\); focusIfLost\(dz\);/g)).toHaveLength(3);
-    expect(read("src/tools-mask.ts")).toMatch(/reset\(\); focusIfLost\(dz\); \} \}, "다른 파일"/);
-    expect(read("src/tools-bg.ts")).toMatch(/reset\(\); focusIfLost\(dz\); \} \}, "다른 사진"/);
-    expect(read("src/tools-hwp.ts").match(/reset\(true\); focusIfLost\(dz\); \} \}, "다른 파일"/g)).toHaveLength(2);
+    expect(read("src/tools-pdf.ts").match(/onclick: \(\) => \{ reset\(\); holdTaps\(\); focusIfLost\(dz\); \} \}, "다른 PDF"\)/g)).toHaveLength(3);
+    expect(read("src/tools-pdf.ts")).toMatch(/files = \[\]; out\.replaceChildren\(\); render\(\); holdTaps\(\); focusIfLost\(dz\);/);
+    expect(read("src/tools-img.ts").match(/list\.clear\(\); holdTaps\(\); focusIfLost\(dz\);/g)).toHaveLength(3);
+    expect(read("src/tools-mask.ts")).toMatch(/reset\(\); holdTaps\(\); focusIfLost\(dz\); \} \}, "다른 파일"/);
+    expect(read("src/tools-bg.ts")).toMatch(/reset\(\); holdTaps\(\); focusIfLost\(dz\); \} \}, "다른 사진"/);
+    expect(read("src/tools-hwp.ts").match(/reset\(true\); holdTaps\(\); focusIfLost\(dz\); \} \}, "다른 파일"/g)).toHaveLength(2);
   });
   it("파일을 넣어 파일 넣는 곳이 숨으면 파일 줄로", () => {
     expect(read("src/tools-pdf.ts").match(/focusIfLost\(fileLine\);/g)).toHaveLength(3);
@@ -68,7 +68,7 @@ describe("초점이 문서 맨 앞으로 빠지지 않아요", () => {
   });
   it("'다른 형식으로 저장'·첫 화면 '그만두기'", () => {
     expect(read("src/tools-hwp.ts")).toMatch(/focusIfLost\(fmtGroup\.querySelector<HTMLElement>\('\[aria-checked="true"\]'\)\);/);
-    expect(read("src/app.ts")).toMatch(/box\.hidden = true; focusIfLost\(\$id\("tool-grid"\)\.querySelector<HTMLElement>\("a"\)\);/);
+    expect(read("src/app.ts")).toMatch(/box\.hidden = true; holdTaps\(\); focusIfLost\(\$id\("tool-grid"\)\.querySelector<HTMLElement>\("a"\)\);/);
   });
 });
 

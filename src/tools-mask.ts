@@ -2,6 +2,7 @@
 //  - 가릴 곳을 끌어서 검은 네모로 칠해요. 저장할 때 그림 자체에 칠하니 밑의 글자는 결과에 남지 않아요.
 //  - PDF 는 쪽마다 그림으로 그려서 칠하므로 결과도 이미지 PDF 예요(글자 선택 안 됨 = 가린 글자도 못 꺼냄).
 import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, openPdfjs, renderPdfPage, focusIfLost, setDisabledKeepingFocus } from "./ui.js";
+import { holdTaps } from "./tap.js";
 import { formatSize, kindOf, outName, normRect, rectAt, watermarkLines, watermarkMetrics, kstDateLabel, mmToPt, type Rect, type WatermarkSize } from "./lib.js";
 import type { Mounted } from "./app.js";
 
@@ -42,8 +43,8 @@ export function mountMask(root: HTMLElement): Mounted {
   const count = h("span", { class: "muted" });
   // 되돌리기는 마지막에 한 일을 되돌려요. 예전에는 늘 마지막 네모만 지워서, 톡 눌러 지운 곳·'모두 지우기'는 되살릴 수 없고
   // 오히려 남아 있던 다른 네모가 지워졌어요
-  const undoBtn = h("button", { type: "button", class: "btn sm", onclick: () => { const p = page(), prev = p?.history.pop(); if (!p || !prev) return; p.masks = prev; changed(); } }, "되돌리기");
-  const clearBtn = h("button", { type: "button", class: "btn sm ghost", onclick: () => { const p = page(); if (!p?.masks.length) return; p.history.push(p.masks); p.masks = []; changed(); } }, "이 쪽 가린 곳 모두 지우기");
+  const undoBtn = h("button", { type: "button", class: "btn sm", onclick: () => { const p = page(), prev = p?.history.pop(); if (!p || !prev) return; p.masks = prev; holdTaps(); changed(); } }, "되돌리기");
+  const clearBtn = h("button", { type: "button", class: "btn sm ghost", onclick: () => { const p = page(); if (!p?.masks.length) return; p.history.push(p.masks); p.masks = []; holdTaps(); changed(); } }, "이 쪽 가린 곳 모두 지우기");
   const fileLine = h("div", { class: "muted", tabindex: "-1" }); // 파일을 넣어 파일 넣는 곳이 숨으면 초점을 여기로
 
   const toIn = h("input", { class: "input", type: "text", maxlength: "30", placeholder: "예) OO은행, OO부동산", "aria-label": "제출처", autocomplete: "off" });
@@ -62,7 +63,7 @@ export function mountMask(root: HTMLElement): Mounted {
   const go2 = h("button", { type: "button", class: "btn primary big", onclick: run }, "사본 만들기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); focusIfLost(dz); } }, "다른 파일")),
+      h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); holdTaps(); focusIfLost(dz); } }, "다른 파일")),
       h("h2", { class: "sub-h" }, "1. 가릴 곳 칠하기"),
       h("p", { class: "hint", style: "margin:0 0 10px" }, "주민등록번호 뒷자리, 주소, 계좌번호처럼 보내면 안 되는 곳을 손가락이나 마우스로 끌어서 검게 칠해요. 칠한 곳을 톡 누르면 지워져요."),
       pager, stage,

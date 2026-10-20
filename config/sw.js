@@ -7,10 +7,13 @@
 //   화면이 형식이 틀린 응답을 보고 캐시를 건너뛰어(cache: 'reload') 다시 받으면 여기서도 네트워크로 가서 저장본을 고쳐요. HTML(404 화면)은 저장하지 않아요
 // - 글꼴 Pretendard(jsDelivr): 정상 응답만 따로 저장
 // - 배경 지우기 모델(staticimgly.com)은 건드리지 않아요
+// - 새 버전이 깔리면 바로 앞 버전의 화면 JS(/js/*, 이름에 해시)를 한 세대만 따로(jms-prev) 남겨요. 배포 전에 열어 둔 화면이 아직 받지 않은
+//   도구 코드(HWP 보기·PDF 워커)를 부르면 새 배포에는 그 이름이 없어 '도구를 불러오지 못했어요'가 떴어요(QA 4바퀴, 2026-10-20)
 const VERSION = __SW_VERSION__;
 const CORE = __SW_PRECACHE__;
 const VENDOR = 'jms-vendor-v1';
 const FONTS = 'jms-fonts-v1';
+const PREV = 'jms-prev';
 const NAV_TIMEOUT = 3000;
 const PAGES = { '/hwp': './hwp', '/privacy': './privacy', '/licenses': './licenses' };
 
@@ -19,7 +22,21 @@ self.addEventListener('install', (e) => {
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
-    for (const k of await caches.keys()) if (k.startsWith('jms-') && k !== VERSION && k !== VENDOR && k !== FONTS) await caches.delete(k);
+    const olds = (await caches.keys()).filter((k) => k.startsWith('jms-') && k !== VERSION && k !== VENDOR && k !== FONTS && k !== PREV);
+    if (olds.length) {
+      // 두 세대 전 것은 버리고, 바로 앞 버전의 JS 만 옮겨 둬요
+      await caches.delete(PREV);
+      const prev = await caches.open(PREV);
+      for (const k of olds) {
+        const c = await caches.open(k);
+        for (const req of await c.keys()) {
+          if (!new URL(req.url).pathname.startsWith('/js/')) continue;
+          const r = await c.match(req);
+          if (r) await prev.put(req, r);
+        }
+        await caches.delete(k);
+      }
+    }
     await self.clients.claim();
   })());
 });
@@ -69,7 +86,7 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   e.respondWith(caches.open(VERSION).then(async (c) => {
-    const hit = await c.match(req, { ignoreSearch: true });
+    const hit = (await c.match(req, { ignoreSearch: true })) || (url.pathname.startsWith('/js/') ? await caches.open(PREV).then((p) => p.match(req, { ignoreSearch: true })) : undefined);
     const net = fetch(req).then((r) => { if (r.status === 200 && !isHtml(r)) c.put(req, r.clone()); return r; });
     if (hit) { net.catch(() => {}); return hit; }
     return net;

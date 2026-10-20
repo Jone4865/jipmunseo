@@ -34,6 +34,6 @@ describe("손가락 화면의 파일 넣는 곳", () => {
 
 describe("손가락 화면 누르는 자리", () => {
   it("목록의 위로·아래로·빼기와 작은 단추가 44px", () => {
-    expect(read("public/css/style.css")).toMatch(/@media \(pointer: coarse\) \{ \.fbtns \.icon-btn \{ width: 44px; height: 44px; \} \.btn\.sm \{ min-height: 44px; \} \}/);
+    expect(read("public/css/style.css")).toMatch(/@media \(pointer: coarse\) \{ \.fbtns \.icon-btn \{ width: 44px; height: 44px; \} \.btn\.sm \{ min-height: 44px; \}/);
   });
 });
