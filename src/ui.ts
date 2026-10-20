@@ -48,14 +48,20 @@ export function iconBtn(name: string, label: string, onClick: (e: MouseEvent) =>
  * 단추가 초점을 가진 채 눌렸으면(키보드·안드로이드) 다시 그린 뒤 옮긴 항목의 같은 단추로 초점을 돌려요.
  * 끝에 닿아 그 단추가 꺼졌으면 그 항목의 켜진 단추로, 지운 항목이면 그 자리에 온 항목으로.
  */
+/** 목록 단추를 누른 뒤 줄이 옮겨졌거나 빠졌는지(같은 자리에 다른 줄이 왔는지) — 아니면 두 번 톡톡 거르기를 걸지 않아요 */
+export const rowMoved = (from: number, to: number | null, countBefore: number, countAfter: number): boolean =>
+  from < 0 || countBefore !== countAfter || (to !== null && to !== from);
 export function rowAction(container: HTMLElement, rowSel: string, act: () => number | null): (e: MouseEvent) => void {
   return (e) => {
     const btn = e.currentTarget as HTMLElement | null;
     const had = !!btn && btn === document.activeElement;
     const label = btn?.getAttribute("aria-label") ?? "";
+    const before = [...container.querySelectorAll(rowSel)];
+    const from = btn ? before.findIndex((r) => r.contains(btn)) : -1;
     const to = act();
-    // 줄이 옮겨지거나 빠지면 같은 자리로 다른 줄이 와요 — 두 번 톡톡의 두 번째 누름이 다음 파일까지 빼거나 되돌려 놓지 않게
-    holdTaps();
+    // 줄이 옮겨지거나 빠지면 같은 자리로 다른 줄이 와요 — 두 번 톡톡의 두 번째 누름이 다음 파일까지 빼거나 되돌려 놓지 않게.
+    // 돌리기처럼 줄이 제자리에 남으면 거르지 않아요 — 예전에는 '오른쪽으로 돌리기'를 빠르게 두 번 눌러도 90°만 돌았어요(버그 5차)
+    if (rowMoved(from, to, before.length, container.querySelectorAll(rowSel).length)) holdTaps();
     if (!had || to === null) return;
     const rows = container.querySelectorAll<HTMLElement>(rowSel);
     const row = rows[Math.max(0, Math.min(to, rows.length - 1))];

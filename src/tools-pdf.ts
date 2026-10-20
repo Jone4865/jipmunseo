@@ -23,12 +23,14 @@ export const moveHint = (mouse: string, touch: string, isTouch = touchFirst()): 
 export function mountMerge(root: HTMLElement): Mounted {
   let files: { id: number; file: File; pages: number | null; error: string | null }[] = []; // {id, file, pages, error}
   let uid = 0;
+  /** '모두 지우기'마다 올려요 — 큰 PDF 쪽수를 세는 동안 지우면, 아직 차례를 기다리던 파일이 지운 목록에 다시 들어왔어요(버그 5차) */
+  let gen = 0;
   const err = alertBox();
   const prog = progress();
   const listEl = h("ol", { class: "flist", "aria-label": "합칠 PDF 순서" });
   const summary = h("span", { class: "muted" });
   const go = h("button", { type: "button", class: "btn primary big", disabled: true, onclick: run }, "PDF 합치기");
-  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { files = []; out.replaceChildren(); render(); holdTaps(); focusIfLost(dz); } }, "모두 지우기");
+  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { gen++; files = []; out.replaceChildren(); render(); holdTaps(); focusIfLost(dz); } }, "모두 지우기");
   const panel = h("div", { class: "panel", hidden: true },
     h("div", { class: "panel-head" }, h("h2", {}, "합칠 순서"), h("div", { class: "row" }, summary, clearBtn)),
     h("p", { class: "hint", style: "margin:-6px 0 10px" }, moveHint("끌어서 놓거나 화살표 단추로", "화살표 단추로") + " 순서를 바꿀 수 있어요. 책갈피(목차)와 입력 칸은 합친 파일로 따라오지 않아요."),
@@ -44,7 +46,9 @@ export function mountMerge(root: HTMLElement): Mounted {
   async function add(list: File[]): Promise<void> {
     err.hide();
     const ok = filterFiles(list, ["pdf"], LIMITS.pdfFile, (m) => err.show(m));
+    const g = gen;
     for (const file of ok) {
+      if (g !== gen) return;
       const it: (typeof files)[number] = { id: ++uid, file, pages: null, error: null };
       files.push(it);
       relist();

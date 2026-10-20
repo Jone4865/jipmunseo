@@ -25,14 +25,15 @@ describe("두 번 톡톡 거르기(tap.ts)", () => {
     t = 1500; expect(g.active()).toBe(true);
   });
   it("줄이 옮겨지거나 빠질 때, 화면이 바뀔 때, 작업 칸이 닫힐 때 걸어요", () => {
-    expect(read("src/ui.ts")).toMatch(/const to = act\(\);[\s\S]{0,200}holdTaps\(\);/);
+    expect(read("src/ui.ts")).toMatch(/const to = act\(\);[\s\S]{0,400}holdTaps\(\);/);
     expect(read("src/app.ts")).toMatch(/installTapGuard\(document\);/);
     expect(read("src/app.ts")).toMatch(/if \(!first\) holdTaps\(\);/);
     expect(read("src/tools-pdf.ts").match(/reset\(\); holdTaps\(\); focusIfLost\(dz\);/g)).toHaveLength(3);
     expect(read("src/tools-img.ts").match(/list\.clear\(\); holdTaps\(\);/g)).toHaveLength(3);
     expect(read("src/tools-hwp.ts").match(/reset\(true\); holdTaps\(\);/g)).toHaveLength(2);
     expect(read("src/tools-hwp.ts")).toMatch(/toggleExport\(\);\s*\/\/[^\n]*\n\s*holdTaps\(\);/);
-    expect(read("src/tools-mask.ts").match(/holdTaps\(\); changed\(\);/g)).toHaveLength(2);
+    // 가리기 되돌리기·모두 지우기는 단추 자리가 그대로라 거르지 않아요(버그 5차 — 연달아 되돌리기가 막혔어요)
+    expect(read("src/tools-mask.ts").match(/holdTaps\(\); changed\(\);/g)).toBeNull();
   });
 });
 

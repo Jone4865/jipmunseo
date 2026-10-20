@@ -42,9 +42,10 @@ export function mountMask(root: HTMLElement): Mounted {
   const pager = h("div", { class: "row mask-pager" }, prevBtn, pageInfo, nextBtn);
   const count = h("span", { class: "muted" });
   // 되돌리기는 마지막에 한 일을 되돌려요. 예전에는 늘 마지막 네모만 지워서, 톡 눌러 지운 곳·'모두 지우기'는 되살릴 수 없고
-  // 오히려 남아 있던 다른 네모가 지워졌어요
-  const undoBtn = h("button", { type: "button", class: "btn sm", onclick: () => { const p = page(), prev = p?.history.pop(); if (!p || !prev) return; p.masks = prev; holdTaps(); changed(); } }, "되돌리기");
-  const clearBtn = h("button", { type: "button", class: "btn sm ghost", onclick: () => { const p = page(); if (!p?.masks.length) return; p.history.push(p.masks); p.masks = []; holdTaps(); changed(); } }, "이 쪽 가린 곳 모두 지우기");
+  // 오히려 남아 있던 다른 네모가 지워졌어요. 단추 자리가 바뀌지 않으니 두 번 톡톡 거르기(holdTaps)는 걸지 않아요 — 걸면 0.4초 간격으로
+  // 세 번 되돌려도 두 번만 되돌려지고, 되돌린 바로 뒤 0.9초는 칠하기도 시작되지 않았어요(버그 5차)
+  const undoBtn = h("button", { type: "button", class: "btn sm", onclick: () => { const p = page(), prev = p?.history.pop(); if (!p || !prev) return; p.masks = prev; changed(); } }, "되돌리기");
+  const clearBtn = h("button", { type: "button", class: "btn sm ghost", onclick: () => { const p = page(); if (!p?.masks.length) return; p.history.push(p.masks); p.masks = []; changed(); } }, "이 쪽 가린 곳 모두 지우기");
   const fileLine = h("div", { class: "muted", tabindex: "-1" }); // 파일을 넣어 파일 넣는 곳이 숨으면 초점을 여기로
 
   const toIn = h("input", { class: "input", type: "text", maxlength: "30", placeholder: "예) OO은행, OO부동산", "aria-label": "제출처", autocomplete: "off" });
