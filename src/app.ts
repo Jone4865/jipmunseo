@@ -7,6 +7,7 @@ import { mountImgToPdf, mountCompress, mountExif } from "./tools-img.js";
 import { mountBg } from "./tools-bg.js";
 import { mountMask } from "./tools-mask.js";
 import { art } from "./art.js";
+import { TOOL_INFO, toolGridHtml } from "./tool-list.js";
 import { toolsForFiles, noToolMessage, sayArrows } from "./lib.js";
 import { stampResult } from "./motion.js";
 import { PREF, readPref, writePref, pushRecent, parseRecent } from "./prefs.js";
@@ -35,19 +36,12 @@ export function loadFailBox(online: boolean): HTMLElement {
     h("div", { class: "row", style: "margin-top:10px" }, h("button", { type: "button", class: "btn sm", onclick: () => location.reload() }, "새로 고침")));
 }
 const mountHwp = lazyMount(() => import("./tools-hwp.js").then((m) => m.mountHwp));
-const TOOLS: Tool[] = [
-  // 찾는 사람이 가장 많아서 맨 앞(HWP_SPEC 6-1). 검색용 안내 페이지는 public/hwp.html(/hwp)
-  { id: "hwp-view", title: "HWP 보기 · 변환", desc: "한글 문서(HWP·HWPX)를 열어 보고 PDF·Word·그림·텍스트로 저장해요.", mount: mountHwp },
-  { id: "pdf-merge", title: "PDF 합치기", desc: "여러 PDF를 원하는 순서로 하나로 합쳐요.", mount: mountMerge },
-  { id: "pdf-split", title: "PDF 나누기 · 페이지 빼기", desc: "필요한 쪽만 골라 새 PDF로, 한 쪽씩 또는 범위로 나눠요.", mount: mountSplit },
-  { id: "pdf-organize", title: "PDF 회전 · 순서 바꾸기", desc: "썸네일을 보면서 돌리고, 옮기고, 지운 뒤 저장해요.", mount: mountOrganize },
-  { id: "pdf-compress", title: "PDF 용량 줄이기", desc: "안의 사진을 다시 저장해서 메일·제출 용량에 맞춰요.", mount: mountPdfCompress },
-  { id: "id-mask", title: "신분증 가리기 · 워터마크", desc: "주민번호 뒷자리를 가리고 ‘OO 제출용’을 넣은 사본을 만들어요.", mount: mountMask },
-  { id: "img-to-pdf", title: "이미지 → PDF", desc: "사진 여러 장을 A4 또는 원본 크기 PDF 하나로 묶어요.", mount: mountImgToPdf },
-  { id: "img-compress", title: "이미지 압축 · 변환", desc: "JPG · PNG · WebP · AVIF로 바꾸고 화질 · 크기를 줄여요.", mount: mountCompress },
-  { id: "bg-remove", title: "사진 배경 지우기", desc: "AI가 사진 배경을 지워 투명 PNG로 만들어요.", mount: mountBg },
-  { id: "exif-clean", title: "사진 정보 지우기", desc: "사진에 숨은 위치(GPS) · 카메라 · 날짜 정보를 확인하고 지워요.", mount: mountExif },
-];
+const MOUNTS: Record<string, (body: HTMLElement) => Mounted | void> = {
+  "hwp-view": mountHwp, "pdf-merge": mountMerge, "pdf-split": mountSplit, "pdf-organize": mountOrganize, "pdf-compress": mountPdfCompress,
+  "id-mask": mountMask, "img-to-pdf": mountImgToPdf, "img-compress": mountCompress, "bg-remove": mountBg, "exif-clean": mountExif,
+};
+// 이름·설명은 tool-list.ts 한곳에(첫 화면 HTML 에도 빌드 때 그대로 들어가요)
+const TOOLS: Tool[] = TOOL_INFO.map((t) => ({ ...t, mount: MOUNTS[t.id] }));
 const byId = Object.fromEntries(TOOLS.map((t) => [t.id, t]));
 // 화면이 바뀐 바로 뒤의 두 번째 누름을 걸러요(tap.ts)
 installTapGuard(document);
@@ -55,12 +49,9 @@ installTapGuard(document);
 // 아래 id 들은 index.html 에 항상 있음
 const $id = (id: string) => document.getElementById(id) as HTMLElement;
 
-// 작업대 위 도구들
-$id("tool-grid").replaceChildren(
-  ...TOOLS.map((t) => h("a", { class: "tool-item", href: `#${t.id}` },
-    h("span", { html: art(t.id), style: "display:contents" }),
-    h("h3", {}, ...arrowed(t.title)), h("p", {}, t.desc))),
-  h("p", { class: "bench-memo" }, "필요한 도구가 없나요? ", h("a", { href: "mailto:cowhddnjsdl0@gmail.com" }, "메일로 알려 주세요", ...arrowed(" → ", true))));
+// 작업대 위 도구들 — 빌드한 index.html 에는 이미 들어 있어요(tool-list.ts). 비어 있을 때만 채워요
+const grid = $id("tool-grid");
+if (!grid.querySelector(".tool-item")) grid.innerHTML = toolGridHtml();
 
 // 첫 화면 아무 곳에나 파일을 떨어뜨리면 쓸 도구를 골라 주는데(offerTools), 그걸 알려 주는 곳이 없었어요 — 마우스 화면에만 적어요
 if (typeof matchMedia === "function" && matchMedia("(hover: hover) and (pointer: fine)").matches) {
@@ -117,6 +108,11 @@ const view = $id("tool-view");
 const other = $id("other-tools");
 const baseTitle = document.title;
 let active: Mounted | null = null;
+/** 지금 열려 있는 도구 — 첫 화면으로 돌아오면 그 도구 칸으로 초점을 돌려요 */
+let shownTool: string | null = null;
+/** 위쪽 '집문서' 글자를 눌렀으면 첫 화면 맨 위로(쓰던 도구 칸으로 내려가지 않아요) */
+let toTop = false;
+document.querySelector(".brand")?.addEventListener("click", () => { toTop = !!shownTool; });
 
 function route(first = false) {
   const id = location.hash.slice(1);
@@ -129,7 +125,14 @@ function route(first = false) {
     home.hidden = false; other.hidden = true;
     document.title = baseTitle;
     renderRecent();
+    // '모든 도구'·뒤로 가기로 돌아오면 초점이 사라진 도구 화면과 함께 문서 맨 앞으로 빠져, 키보드·화면 읽기로는 어디인지 몰랐어요(QA 6바퀴)
+    // → 방금 쓴 도구 칸으로 초점과 화면을 돌려요. 위쪽 '집문서' 글자처럼 초점이 남아 있는 곳에서 왔으면 맨 위로
+    const from = shownTool; shownTool = null;
+    const card = from && !toTop ? grid.querySelector<HTMLElement>(`a[href="#${from}"]`) : null;
+    toTop = false;
+    focusIfLost(card);
     if (id && document.getElementById(id)) $id(id).scrollIntoView();
+    else if (card && document.activeElement === card) card.scrollIntoView({ block: "center" });
     else window.scrollTo(0, 0);
     return;
   }
@@ -139,7 +142,7 @@ function route(first = false) {
   view.replaceChildren(h("section", { class: "tool", "aria-labelledby": "tool-title" },
     h("a", { class: "back", href: "#" }, h("span", { html: ICONS.back, style: "display:contents" }), "모든 도구"),
     h("div", { class: "tool-head" }, h("span", { html: art(tool.id), style: "display:contents" }),
-      h("div", {}, h("h1", { id: "tool-title" }, ...arrowed(tool.title)), h("p", {}, tool.desc))),
+      h("div", {}, h("h1", { id: "tool-title", tabindex: "-1" }, ...arrowed(tool.title)), h("p", {}, tool.desc))),
     h("div", { class: "mat work" }, body)));
   other.hidden = false;
   other.replaceChildren(...TOOLS.filter((t) => t.id !== id).map((t) => h("a", { href: `#${t.id}` }, ...arrowed(t.title))));
@@ -147,6 +150,9 @@ function route(first = false) {
   recent = pushRecent(recent, id);
   writePref(PREF.recent, JSON.stringify(recent));
   $id("drop-offer").hidden = true;
+  shownTool = id;
+  // 도구 칸을 키보드로 열면 누른 칸이 숨어 초점이 문서 맨 앞으로 빠졌어요 → 도구 제목으로(화면 읽기가 어느 도구인지 읽어요)
+  if (!first) focusIfLost(view.querySelector<HTMLElement>("#tool-title"));
   if (handoff) { const fs = handoff; handoff = null; giveFiles(body, fs); }
   window.scrollTo(0, 0);
 }

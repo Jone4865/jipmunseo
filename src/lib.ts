@@ -397,3 +397,18 @@ export function uniqueName(name: string, used: Set<string>): string {
 export function sayArrows(text: string): string {
   return text.replace(/\s+/g, " ").trim().replace(/\s*→\s*([^,→]+?)\s*(?=,|$)/g, "에서 $1로");
 }
+
+/**
+ * 목록 단추(위로·아래로·빼기·돌리기)를 누른 뒤 화면 읽기에 들려줄 말. 예전에는 줄이 옮겨지거나 빠져도 아무 말이 없어서,
+ * 화면 읽기로는 '아래로'를 눌러 파일이 몇 번째로 갔는지, 빼기가 됐는지 알 수 없었어요(QA 6바퀴).
+ * name: 파일 이름(파일 목록) · null 이면 쪽 썸네일. rot: 돌린 뒤 쪽의 각도 표시('90°') — 없으면 원래 방향
+ */
+export function rowNews({ name, from, to, before, after, rot = null }: { name: string | null; from: number; to: number | null; before: number; after: number; rot?: string | null }): string {
+  if (from < 0) return "";
+  const page = `${from + 1}번째 쪽`;
+  if (after < before) return name !== null ? `${name} 뺐어요. ${after}개 남았어요` : `${page}을 지웠어요. ${after}쪽 남았어요`;
+  if (to === null) return "";
+  if (to !== from) return name !== null ? `${name}, ${to + 1}번째로 옮겼어요` : `${page}을 ${to + 1}번째로 옮겼어요`;
+  if (name !== null) return "";
+  return rot ? `${page}, ${rot.replace("°", "도")}로 돌렸어요` : `${page}, 원래 방향이에요`;
+}

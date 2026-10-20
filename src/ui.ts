@@ -1,6 +1,6 @@
 // 공통 UI 조각 + 라이브러리 로더
 import { ICONS } from "./icons.js";
-import { formatSize, kindOf, moveItem, zipWriter, uniqueName } from "./lib.js";
+import { formatSize, kindOf, moveItem, zipWriter, uniqueName, rowNews } from "./lib.js";
 import { vendorImport, type PdfjsModule, type PdfjsDocument, type HeicToModule, type FflateModule } from "./vendor.js";
 import { holdTaps } from "./tap.js";
 
@@ -65,13 +65,23 @@ export function rowAction(container: HTMLElement, rowSel: string, act: () => num
     // 줄이 빠져 목록이 짧아지면 목록 밖의 것(합치기·쪽 크기·다른 도구 링크)이 누른 자리로 올라와요 — 누른 자리 둘레도 걸러요(버그 6차)
     const at = e.isTrusted && e.detail !== 0 ? { x: e.clientX, y: e.clientY } : null;
     if (rowMoved(from, to, before.length, container.querySelectorAll(rowSel).length)) holdTaps(undefined, container, at);
-    if (!had || to === null) return;
     const rows = container.querySelectorAll<HTMLElement>(rowSel);
+    const name = from >= 0 ? before[from].querySelector(".fname")?.textContent ?? null : null;
+    say(rowNews({ name, from, to, before: before.length, after: rows.length, rot: to === null ? null : rows[to]?.querySelector(".rot-badge")?.textContent ?? null }));
+    if (!had || to === null) return;
     const row = rows[Math.max(0, Math.min(to, rows.length - 1))];
     if (!row) return;
     const btns = [...row.querySelectorAll<HTMLButtonElement>("button")].filter((b) => !b.disabled);
     (btns.find((b) => b.getAttribute("aria-label") === label) ?? btns[0])?.focus();
   };
+}
+
+/** 화면 읽기에만 들려줘요(index.html 의 #sr-status, 정중하게 읽는 자리). 같은 말을 거푸 해도 다시 읽게 비웠다가 넣어요 */
+export function say(text: string): void {
+  const el = document.getElementById("sr-status");
+  if (!el || !text) return;
+  el.textContent = "";
+  setTimeout(() => { el.textContent = text; }, 60);
 }
 
 /**
