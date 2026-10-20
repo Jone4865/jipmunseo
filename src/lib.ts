@@ -192,6 +192,17 @@ export function toolsForFiles(files: readonly { name?: string; type?: string }[]
   return [];
 }
 
+/**
+ * toolsForFiles 가 빈 목록일 때 알림 — 예전에는 HWP 두 개나 PDF·사진을 같이 놓아도 'HWP·PDF·사진 파일을 넣어 주세요'라고 해서
+ * 맞는 파일을 넣은 사람이 무엇이 틀렸는지 몰랐어요(버그 6차)
+ */
+export function noToolMessage(files: readonly { name?: string; type?: string }[]): string {
+  const isHwp = (f: { name?: string }) => /\.hwpx?$/i.test(String(f.name || ""));
+  if (files.length > 1 && files.every(isHwp)) return "한글 문서는 한 번에 하나씩 열 수 있어요";
+  if (files.length > 1 && files.every((f) => isHwp(f) || kindOf(f) !== "other")) return "종류가 다른 파일이 섞여 있어요. 한 종류씩 넣어 주세요";
+  return "이 파일을 쓰는 도구가 없어요. HWP·PDF·사진 파일을 넣어 주세요";
+}
+
 /** 이미지 → PDF 배치 계산. 단위 pt. pageSize: "a4" | "original", margin pt */
 export function layoutImage(imgW: number, imgH: number, pageSize: PageSize, marginPt = 0): ImageLayout {
   if (pageSize === "original") {

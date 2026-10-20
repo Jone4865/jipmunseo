@@ -62,7 +62,9 @@ export function rowAction(container: HTMLElement, rowSel: string, act: () => num
     // 줄이 옮겨지거나 빠지면 같은 자리로 다른 줄이 와요 — 두 번 톡톡의 두 번째 누름이 다음 파일까지 빼거나 되돌려 놓지 않게.
     // 돌리기처럼 줄이 제자리에 남으면 거르지 않아요 — 예전에는 '오른쪽으로 돌리기'를 빠르게 두 번 눌러도 90°만 돌았어요(버그 5차)
     // 거르는 건 그 목록 안의 누름만 — 목록 밖 '합치기'·'이름순'·바닥에 붙은 단추는 바로 받아요(QA 5바퀴)
-    if (rowMoved(from, to, before.length, container.querySelectorAll(rowSel).length)) holdTaps(undefined, container);
+    // 줄이 빠져 목록이 짧아지면 목록 밖의 것(합치기·쪽 크기·다른 도구 링크)이 누른 자리로 올라와요 — 누른 자리 둘레도 걸러요(버그 6차)
+    const at = e.isTrusted && e.detail !== 0 ? { x: e.clientX, y: e.clientY } : null;
+    if (rowMoved(from, to, before.length, container.querySelectorAll(rowSel).length)) holdTaps(undefined, container, at);
     if (!had || to === null) return;
     const rows = container.querySelectorAll<HTMLElement>(rowSel);
     const row = rows[Math.max(0, Math.min(to, rows.length - 1))];

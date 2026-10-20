@@ -7,7 +7,7 @@ import { mountImgToPdf, mountCompress, mountExif } from "./tools-img.js";
 import { mountBg } from "./tools-bg.js";
 import { mountMask } from "./tools-mask.js";
 import { art } from "./art.js";
-import { toolsForFiles, sayArrows } from "./lib.js";
+import { toolsForFiles, noToolMessage, sayArrows } from "./lib.js";
 import { stampResult } from "./motion.js";
 import { PREF, readPref, writePref, pushRecent, parseRecent } from "./prefs.js";
 
@@ -81,7 +81,7 @@ let handoff: File[] | null = null;
 function offerTools(files: File[]): void {
   const ids = toolsForFiles(files);
   const box = $id("drop-offer");
-  if (!ids.length) { box.hidden = true; toast("이 파일을 쓰는 도구가 없어요. HWP·PDF·사진 파일을 넣어 주세요"); return; }
+  if (!ids.length) { box.hidden = true; toast(noToolMessage(files)); return; }
   if (ids.length === 1) { handoff = files; location.hash = ids[0]; return; }
   // 파일 이름 뒤에 바로 조사를 붙이면 받침에 따라 '로/으로'가 틀려서('계약서 최종본로') '파일로'로 받아요
   const what = files.length === 1 ? `‘${files[0].name}’ 파일` : `파일 ${files.length}개`;

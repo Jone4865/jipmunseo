@@ -165,7 +165,8 @@ export function mountCompress(root: HTMLElement): Mounted {
   q.addEventListener("change", () => writePref(PREF.imgQuality, String(quality)));
   const maxW = h("input", { class: "input num", type: "number", min: "1", inputmode: "numeric", placeholder: "그대로", "aria-label": "최대 가로(px)", value: sizePref(readPref(PREF.imgMaxW)) });
   const maxH = h("input", { class: "input num", type: "number", min: "1", inputmode: "numeric", placeholder: "그대로", "aria-label": "최대 세로(px)", value: sizePref(readPref(PREF.imgMaxH)) });
-  const saveMax = () => { writePref(PREF.imgMaxW, sizePref(maxW.value)); writePref(PREF.imgMaxH, sizePref(maxH.value)); out.replaceChildren(); };
+  // 칸에 남는 값 = 기억하는 값 = 쓰는 값. 예전에는 '0.5'를 넣으면 기억은 안 하면서 그대로 써서 1×1 그림이 나왔어요(버그 6차)
+  const saveMax = () => { maxW.value = sizePref(maxW.value); maxH.value = sizePref(maxH.value); writePref(PREF.imgMaxW, maxW.value); writePref(PREF.imgMaxH, maxH.value); out.replaceChildren(); };
   maxW.addEventListener("change", saveMax); maxH.addEventListener("change", saveMax);
   maxW.addEventListener("input", () => out.replaceChildren()); maxH.addEventListener("input", () => out.replaceChildren());
   const qOpt = h("div", { class: "opt" }, h("span", { class: "lbl" }, "화질 ", qVal), q, h("div", { class: "hint" }, "70~85%면 눈으로 차이를 느끼기 어려워요. PNG는 화질 설정이 없어요."));
@@ -232,7 +233,7 @@ export function mountCompress(root: HTMLElement): Mounted {
     err.hide(); out.replaceChildren(); go.disabled = true;
     const its = list.items.filter(isDecoded);
     const results: { it: ImgItem; blob: Blob; type: string; w: number; h: number; name: string }[] = [];
-    const mw = Number(maxW.value) || 0, mh = Number(maxH.value) || 0;
+    const mw = Number(sizePref(maxW.value)) || 0, mh = Number(sizePref(maxH.value)) || 0;
     try {
       for (let i = 0; i < its.length; i++) {
         const it = its[i];

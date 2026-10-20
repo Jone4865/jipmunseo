@@ -384,6 +384,10 @@ input[type="range"] { width: 100%; accent-color: var(--acc); min-height: 32px; }
   .fitem { gap: 8px; padding: 8px; flex-wrap: wrap; }
   .fitem .fmeta { flex: 1 1 140px; }
   .fbtns { margin-left: auto; }
+  /* 결과 줄도 좁으면 '내려받기'를 아래 줄로 — 390폭에서 글 칸이 110~125px 라 '3.93 / KB'·'원본이 더 / 작아요 — / …'처럼 네 줄로 꺾였어요(버그 6차) */
+  .ritem { flex-wrap: wrap; }
+  .ritem > .fmeta { flex: 1 1 160px; }
+  .ritem > .btn { margin-left: auto; }
   .btn.big { width: 100%; }
   .result h2 { font-size: 18px; }
   .mask-stage { padding: 6px; }
