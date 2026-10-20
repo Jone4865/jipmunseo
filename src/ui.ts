@@ -141,7 +141,35 @@ export function stickyActions(...kids: Kid[]): HTMLDivElement {
       el.classList.toggle("stuck", stuck);
     }, { threshold: [0, 1] }).observe(el);
   }
+  watchCover();
   return el;
+}
+
+/** 키보드 초점이 아래에 붙은 단추 줄 밑에 숨었는지 — 숨은 만큼(+여유) 올려야 하는 픽셀, 아니면 0 */
+export function coveredBy(el: { top: number; bottom: number }, bar: { top: number; bottom: number }, gap = 12): number {
+  if (el.bottom <= bar.top || el.top >= bar.bottom) return 0;
+  return Math.ceil(el.bottom - bar.top + gap);
+}
+/**
+ * Tab 으로 옮긴 초점이 화면 아래에 붙은 단추 줄 밑으로 들어가 보이지 않았어요(버그 7차 — 합치기 5번째 줄 '위로'가 통째로,
+ * 나누기 쪽 칸이 74px 가렸어요). 브라우저는 붙은 줄을 모르고 화면 맨 아래까지만 보여 줘서예요 → 가린 만큼 올려요.
+ * 키보드 초점(:focus-visible)만 — 손가락·마우스로 누를 때 화면이 움직이면 두 번째 누름이 다른 것에 닿아요
+ */
+let coverWatch = false;
+function watchCover(): void {
+  if (coverWatch || typeof document === "undefined") return;
+  coverWatch = true;
+  document.addEventListener("focusin", (e) => {
+    const t = e.target as HTMLElement | null;
+    if (!t || !(t instanceof HTMLElement)) return;
+    requestAnimationFrame(() => {
+      if (document.activeElement !== t || !t.matches(":focus-visible")) return;
+      const bar = [...document.querySelectorAll<HTMLElement>(".actions.stick")].find((b) => !b.closest("[hidden]"));
+      if (!bar || bar.contains(t)) return;
+      const dy = coveredBy(t.getBoundingClientRect(), bar.getBoundingClientRect());
+      if (dy > 0) window.scrollBy(0, dy);
+    });
+  });
 }
 
 /* ───── 토스트 ───── */
