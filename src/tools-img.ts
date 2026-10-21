@@ -1,5 +1,5 @@
 // 이미지 도구: 이미지→PDF / 압축·변환·크기 / 사진 정보(EXIF) 지우기
-import { type SegOption, h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
+import { type SegOption, h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref, intPref, sizePref } from "./prefs.js";
 import { formatSize, outName, moveItem, sortByName, isSortedByName, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord } from "./lib.js";
@@ -68,6 +68,7 @@ function imageList({ orderable }: { orderable: boolean }) {
         el.firstElementChild?.querySelector('[aria-label="위로"]')?.setAttribute("disabled", "");
         el.lastElementChild?.querySelector('[aria-label="아래로"]')?.setAttribute("disabled", "");
       }
+      describeRows(el, ".fitem", ".fname");
       api.onChange();
     },
   };

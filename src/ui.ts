@@ -43,6 +43,22 @@ export function iconBtn(name: string, label: string, onClick: (e: MouseEvent) =>
   return h("button", { type: "button", class: `icon-btn ${extra}`, title: label, "aria-label": label, html: ICONS[name], onclick: onClick });
 }
 
+let rowNameSeq = 0;
+/**
+ * 목록 줄의 단추('빼기'·'위로'·'내려받기'…)가 어느 파일·쪽의 것인지 화면 읽기에 들려줘요(aria-describedby → 그 줄의 이름).
+ * 예전에는 파일 두 개를 넣고 Tab 으로 지나가면 '아래로, 빼기, 위로, 빼기'만 들려서 어느 파일을 빼는지 알 수 없었어요(QA 7바퀴).
+ * 단추 이름(aria-label)은 그대로 둬요 — 다시 그린 뒤 같은 단추로 초점을 돌릴 때 이름으로 찾아요(rowAction).
+ */
+export function describeRow(row: HTMLElement, labelSel: string): void {
+  const label = row.querySelector<HTMLElement>(labelSel);
+  if (!label) return;
+  label.id ||= `rowname-${++rowNameSeq}`;
+  row.querySelectorAll("button").forEach((b) => b.setAttribute("aria-describedby", label.id));
+}
+export function describeRows(container: ParentNode, rowSel: string, labelSel: string): void {
+  container.querySelectorAll<HTMLElement>(rowSel).forEach((row) => describeRow(row, labelSel));
+}
+
 /**
  * 목록 항목의 단추('위로'·'아래로'·'빼기'·돌리기)를 누르면 목록을 통째로 새로 그려서, 키보드로 누르면 초점이 페이지 맨 앞으로 빠졌어요.
  * 단추가 초점을 가진 채 눌렸으면(키보드·안드로이드) 다시 그린 뒤 옮긴 항목의 같은 단추로 초점을 돌려요.
@@ -285,10 +301,12 @@ export function download(blob: Blob, name: string): void {
 export function resultItem({ name, blob, extra, thumb }: { name: string; blob: Blob; extra?: Kid; thumb?: Node | null }): HTMLDivElement {
   const btn = h("button", { type: "button", class: "btn sm primary", onclick: once(() => download(blob, name)) }, icon("dl"), "내려받기");
   btn.dataset.name = name;
-  return h("div", { class: "ritem" },
+  const row = h("div", { class: "ritem" },
     thumb || null,
     h("div", { class: "fmeta" }, h("div", { class: "fname", title: name }, name), h("div", { class: "fsub" }, formatSize(blob.size), extra ? h("span", {}, " · ", extra) : null)),
     btn);
+  describeRow(row, ".fname");
+  return row;
 }
 
 

@@ -70,12 +70,12 @@ export function formatRanges(indices: number[]): string {
 /** 바이트 → "1.2 MB" */
 export function formatSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "-";
-  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024) return `${bytes}\u00a0B`;
   const units = ["KB", "MB", "GB"];
   let v = bytes / 1024;
   let u = 0;
   while (v >= 1024 && u < units.length - 1) { v /= 1024; u++; }
-  return `${v >= 100 ? Math.round(v) : v >= 10 ? v.toFixed(1).replace(/\.0$/, "") : v.toFixed(2).replace(/\.?0+$/, "")} ${units[u]}`;
+  return `${v >= 100 ? Math.round(v) : v >= 10 ? v.toFixed(1).replace(/\.0$/, "") : v.toFixed(2).replace(/\.?0+$/, "")}\u00a0${units[u]}`;
 }
 
 /**

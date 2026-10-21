@@ -1,5 +1,5 @@
 // PDF 도구: 합치기 / 나누기·페이지 빼기 / 회전·순서
-import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
+import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
 import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, type CompressMode, type CompressLevel } from "./lib.js";
@@ -80,6 +80,7 @@ export function mountMerge(root: HTMLElement): Mounted {
         iconBtn("x", "빼기", rowAction(listEl, ".fitem", () => { files.splice(i, 1); relist(); return files.length ? i : null; }), "danger")))));
     listEl.querySelectorAll(".fitem")[0]?.querySelector('[aria-label="위로"]')?.setAttribute("disabled", "");
     [...listEl.querySelectorAll(".fitem")].at(-1)?.querySelector('[aria-label="아래로"]')?.setAttribute("disabled", "");
+    describeRows(listEl, ".fitem", ".fname");
     const good = files.filter((f) => f.pages);
     summary.textContent = `${files.length}개 · 모두 ${sumPages(good)}쪽`;
     sortBtn.hidden = files.length < 2;
@@ -177,7 +178,7 @@ export function mountSplit(root: HTMLElement): Mounted {
       if (g !== loadGen) { o.doc.destroy?.(); return; }
       cur = { file, ...o, renderer: thumbRenderer(o.doc) };
       dz.hidden = true; work.hidden = false;
-      fileLine.replaceChildren(h("b", { style: "color:var(--text)" }, file.name), ` · ${C().pages}쪽 · ${formatSize(file.size)}`);
+      fileLine.replaceChildren(h("b", { style: "color:var(--ink)" }, file.name), ` · ${C().pages}쪽 · ${formatSize(file.size)}`);
       focusIfLost(fileLine);
       grid.replaceChildren(...Array.from({ length: C().pages }, (_, i) => {
         const box = h("div", { class: "tbox", dataset: { page: i } }, h("div", { class: "ph" }));
@@ -332,7 +333,7 @@ export function mountOrganize(root: HTMLElement): Mounted {
         C().renderer.observe(box);
       }
       dz.hidden = true; work.hidden = false;
-      fileLine.replaceChildren(h("b", { style: "color:var(--text)" }, file.name), ` · ${C().pages}쪽 · ${formatSize(file.size)}`);
+      fileLine.replaceChildren(h("b", { style: "color:var(--ink)" }, file.name), ` · ${C().pages}쪽 · ${formatSize(file.size)}`);
       focusIfLost(fileLine);
       render();
     } catch (e) { if (g === loadGen) { err.show(errMsg(e)); reset(); } }
@@ -349,7 +350,7 @@ export function mountOrganize(root: HTMLElement): Mounted {
       return h("div", { class: "thumb", draggable: "true", dataset: { i } },
         it.rot ? h("span", { class: "rot-badge" }, `${it.rot}°`) : null,
         box,
-        h("div", { class: "tlabel" }, h("b", {}, `${i + 1}`), it.idx !== i ? h("span", {}, `원래 ${it.idx + 1}쪽`) : null),
+        h("div", { class: "tlabel" }, h("b", {}, `${i + 1}`), h("span", { class: "sr" }, "번째 쪽"), it.idx !== i ? h("span", {}, `원래 ${it.idx + 1}쪽`) : null),
         h("div", { class: "tbtns" },
           iconBtn("rotL", "왼쪽으로 돌리기", rowAction(grid, ".thumb", () => { it.rot = normRotation(it.rot - 90); edit(); return i; })),
           iconBtn("rotR", "오른쪽으로 돌리기", rowAction(grid, ".thumb", () => { it.rot = normRotation(it.rot + 90); edit(); return i; })),
@@ -361,6 +362,7 @@ export function mountOrganize(root: HTMLElement): Mounted {
       if (i === 0) (t.querySelector('[aria-label="앞으로"]') as HTMLButtonElement).disabled = true;
       if (i === n - 1) (t.querySelector('[aria-label="뒤로"]') as HTMLButtonElement).disabled = true;
     });
+    describeRows(grid, ".thumb", ".tlabel");
     const removed = cur ? C().pages - n : 0;
     const rotated = items.filter((x) => x.rot).length;
     const moved = items.some((x, i) => x.idx !== i);

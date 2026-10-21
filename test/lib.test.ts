@@ -32,14 +32,14 @@ test("rangesToSet / formatRanges", () => {
   assert.equal(formatRanges([]), "");
   assert.equal(formatRanges([3, 3, 1]), "2, 4");
 });
-test("formatSize", () => {
-  assert.equal(formatSize(0), "0 B");
-  assert.equal(formatSize(1023), "1023 B");
-  assert.equal(formatSize(1024), "1 KB");
-  assert.equal(formatSize(1536), "1.5 KB");
-  assert.equal(formatSize(10 * 1024 * 1024), "10 MB");
-  assert.equal(formatSize(123.4 * 1024 * 1024), "123 MB");
-  assert.equal(formatSize(1.25 * 1024 ** 3), "1.25 GB");
+test("formatSize — 숫자와 단위 사이는 줄바꿈 없는 칸(좁은 화면에서 '660' 과 'KB' 가 두 줄로 갈라졌어요, QA 7바퀴)", () => {
+  assert.equal(formatSize(0), "0\u00a0B");
+  assert.equal(formatSize(1023), "1023\u00a0B");
+  assert.equal(formatSize(1024), "1\u00a0KB");
+  assert.equal(formatSize(1536), "1.5\u00a0KB");
+  assert.equal(formatSize(10 * 1024 * 1024), "10\u00a0MB");
+  assert.equal(formatSize(123.4 * 1024 * 1024), "123\u00a0MB");
+  assert.equal(formatSize(1.25 * 1024 ** 3), "1.25\u00a0GB");
   assert.equal(formatSize(-1), "-");
 });
 test("savedPercent", () => {

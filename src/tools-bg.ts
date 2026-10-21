@@ -67,7 +67,7 @@ export function mountBg(root: HTMLElement): Mounted {
       srcURL = URL.createObjectURL(blob);
       before.replaceChildren(h("img", { src: srcURL, alt: "원본 사진" }));
       after.replaceChildren(h("span", { class: "muted", style: "font-size:13px" }, "아직 안 지웠어요"));
-      (document.getElementById("bg-file") as HTMLElement).replaceChildren(h("b", { style: "color:var(--text)" }, f.name), ` · ${formatSize(f.size)}`);
+      (document.getElementById("bg-file") as HTMLElement).replaceChildren(h("b", { style: "color:var(--ink)" }, f.name), ` · ${formatSize(f.size)}`);
       dz.hidden = true; work.hidden = false;
       focusIfLost(document.getElementById("bg-file")); // 파일 넣는 곳이 숨어 초점이 문서 맨 앞으로 빠지지 않게
       go.disabled = false; go.textContent = "배경 지우기";
