@@ -10,8 +10,7 @@ https://jipmunseo.pages.dev (Cloudflare Pages · 예전 `*.vercel.app` 주소는
 - `script-src 'self' 'wasm-unsafe-eval' blob:` — 실행되는 스크립트는 이 사이트 파일뿐이에요(외부 CDN 스크립트 없음).
   `blob:` 는 배경 지우기 라이브러리가 IMG.LY 에서 받은 실행 파일을 워커로 돌릴 때 필요해요.
 - `connect-src 'self' blob: https://staticimgly.com` — 데이터를 보낼 수 있는 곳은 이 사이트와 배경 지우기 모델을 받는 곳뿐.
-- 글꼴 Pretendard 는 jsDelivr 의 `pretendard@v1.3.9/` 경로만 허용하고, `index.html`·`licenses.html` 에서 SRI(`integrity`)로 확인해요.
-  CSS 를 바꾸면 해시도 다시: `curl -s <주소> | openssl dgst -sha384 -binary | openssl base64 -A`
+- 글꼴은 이 사이트의 `/fonts/`(JL Sans = Pretendard 1.3.9 를 줄인 판, OFL 예약 이름 때문에 이름을 바꿈)라 `font-src 'self'` 예요. 화면 문구에 새 글자가 생기면 `npm run fonts`(시험이 알려 줘요). 첫 파일(약 120KB)만 받고, 첫 파일에 없는 한글은 `JL Sans Ko`(약 350KB)를 그때 받아요.
 - `frame-ancestors 'none'` + `X-Frame-Options: DENY`, `form-action 'none'`, `object-src 'none'`, `Referrer-Policy: no-referrer`.
 
 ## 도구

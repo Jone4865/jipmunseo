@@ -5,14 +5,13 @@
 // - 화면 JS·CSS·아이콘: 미리 저장 + 저장해 둔 것 먼저, 뒤에서 갱신
 // - /vendor/*(pdf-lib·PDF.js·rhwp WASM·글꼴 등, 이름에 버전이 붙어 바뀌지 않는 파일): 미리 받지 않고, 그 도구를 한 번 쓰면 따로 저장해요(앱 버전이 바뀌어도 남아요).
 //   화면이 형식이 틀린 응답을 보고 캐시를 건너뛰어(cache: 'reload') 다시 받으면 여기서도 네트워크로 가서 저장본을 고쳐요. HTML(404 화면)은 저장하지 않아요
-// - 글꼴 Pretendard(jsDelivr): 정상 응답만 따로 저장
+// - 글꼴(/fonts/, 이름에 해시): 첫 파일은 미리 저장, 한글 더(jl-sans-ko)는 받으면 저장 — 화면 파일과 같은 길이에요. 다른 출처는 건드리지 않아요
 // - 배경 지우기 모델(staticimgly.com)은 건드리지 않아요
 // - 새 버전이 깔리면 바로 앞 버전의 화면 JS(/js/*, 이름에 해시)를 한 세대만 따로(jms-prev) 남겨요. 배포 전에 열어 둔 화면이 아직 받지 않은
 //   도구 코드(HWP 보기·PDF 워커)를 부르면 새 배포에는 그 이름이 없어 '도구를 불러오지 못했어요'가 떴어요(QA 4바퀴, 2026-10-20)
 const VERSION = __SW_VERSION__;
 const CORE = __SW_PRECACHE__;
 const VENDOR = 'jms-vendor-v1';
-const FONTS = 'jms-fonts-v1';
 const PREV = 'jms-prev';
 const NAV_TIMEOUT = 3000;
 const PAGES = { '/hwp': './hwp', '/privacy': './privacy', '/licenses': './licenses' };
@@ -22,7 +21,7 @@ self.addEventListener('install', (e) => {
 });
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
-    const olds = (await caches.keys()).filter((k) => k.startsWith('jms-') && k !== VERSION && k !== VENDOR && k !== FONTS && k !== PREV);
+    const olds = (await caches.keys()).filter((k) => k.startsWith('jms-') && k !== VERSION && k !== VENDOR && k !== PREV);
     if (olds.length) {
       // 두 세대 전 것은 버리고, 바로 앞 버전의 JS 만 옮겨 둬요
       await caches.delete(PREV);
@@ -50,16 +49,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET' || req.headers.has('range')) return;
   const url = new URL(req.url);
-  if (url.origin !== location.origin) {
-    if (url.hostname !== 'cdn.jsdelivr.net' || !url.pathname.startsWith('/gh/orioncactus/pretendard@')) return;
-    e.respondWith(caches.open(FONTS).then(async (c) => {
-      const hit = await c.match(req);
-      const net = fetch(req).then((r) => { if (r.ok) c.put(req, r.clone()); return r; });
-      if (hit) { net.catch(() => {}); return hit; }
-      return net;
-    }));
-    return;
-  }
+  if (url.origin !== location.origin) return;
   if (req.mode === 'navigate') {
     const key = PAGES[url.pathname.replace(/\.html$/, '')] || (url.pathname === '/' || url.pathname === '/index.html' ? './' : null);
     if (!key) return; // 없는 주소는 그대로(404 화면)

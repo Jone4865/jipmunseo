@@ -32,11 +32,11 @@ test("서비스 워커: vendor 는 한 번 쓰면 따로 저장(HTML·부분 응
   assert.match(sw, /if \(r\.status === 200 && !isHtml\(r\)\) c\.put\(req, r\.clone\(\)\)/);
   assert.match(sw, /if \(req\.cache !== 'reload' && req\.cache !== 'no-store'\)/);
   assert.match(sw, /req\.headers\.has\('range'\)/);
-  // 배경 지우기 모델(staticimgly.com)은 건드리지 않아요 — 다른 출처는 Pretendard 만
-  assert.match(sw, /url\.hostname !== 'cdn\.jsdelivr\.net' \|\| !url\.pathname\.startsWith\('\/gh\/orioncactus\/pretendard@'\)/);
+  // 다른 출처(배경 지우기 모델 staticimgly.com)는 건드리지 않아요 — 글꼴도 이제 이 사이트 /fonts/ 예요(QA 7바퀴)
+  assert.match(sw, /if \(url\.origin !== location\.origin\) return;/);
   const headers = read("public/_headers");
   assert.match(headers, /\/sw\.js\n\s+Cache-Control: no-cache/);
-  assert.match(headers, /connect-src 'self' blob: https:\/\/staticimgly\.com https:\/\/cdn\.jsdelivr\.net\/gh\/orioncactus\/pretendard@v1\.3\.9\/;/);
+  assert.match(headers, /connect-src 'self' blob: https:\/\/staticimgly\.com;/);
   assert.match(read("vite.config.ts"), /plugins: \[toolGridPlugin\(\), swPlugin\(\)\]/);
   assert.match(read("src/app.ts"), /if \(import\.meta\.env\.PROD && "serviceWorker" in navigator\)/);
 });

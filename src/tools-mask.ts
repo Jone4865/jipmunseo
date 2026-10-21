@@ -12,7 +12,7 @@ const COLORS = { gray: "#374151", red: "#dc2626", blue: "#1d4ed8" } as const;
 type WmColor = keyof typeof COLORS;
 const MAX_PAGES = 10;
 const RENDER_DPI = 150;
-const FONT = '"Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
+const FONT = '"JL Sans", "JL Sans Ko", -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
 
 function checkbox(label: string, checked: boolean, onChange: (v: boolean) => void): HTMLLabelElement {
   const input = h("input", { type: "checkbox", checked: checked || null });
@@ -155,13 +155,13 @@ export function mountMask(root: HTMLElement): Mounted {
   }
   function go(i: number): void { cur = Math.max(0, Math.min(pages.length - 1, i)); changed(); }
 
-  // 캔버스 글자는 웹 글꼴 중 그 글자가 든 조각이 받아져 있어야 Pretendard 로 그려져요
+  // 캔버스 글자는 그 글자가 든 웹 글꼴 파일이 받아져 있어야 JL Sans 로 그려져요(첫 파일에 없는 한글은 JL Sans Ko 파일)
   let fontKey = "";
   function ensureFont(): Promise<void> {
     const text = wmLines().join("");
     if (!document.fonts || text === fontKey) return Promise.resolve();
     fontKey = text;
-    return document.fonts.load(`800 40px "Pretendard Variable"`, text).then(() => schedule(), () => {});
+    return document.fonts.load(`800 40px "JL Sans", "JL Sans Ko"`, text).then(() => schedule(), () => {});
   }
 
   /* ───── 끌어서 칠하기 ───── */

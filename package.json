@@ -9,10 +9,15 @@
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
     "deploy": "vite build && npx --yes wrangler@4 pages deploy dist --project-name jipmunseo --branch main && bash dev/check-deploy.sh",
-    "check:deploy": "bash dev/check-deploy.sh"
+    "check:deploy": "bash dev/check-deploy.sh",
+    "fonts": "node dev/fonts.mjs"
   },
   "devDependencies": {
+    "@pdf-lib/fontkit": "1.1.1",
     "@types/node": "22.20.5",
+    "fontverter": "2.0.0",
+    "pretendard": "1.3.9",
+    "subset-font": "2.9.0",
     "typescript": "7.0.2",
     "vite": "8.3.4",
     "vitest": "5.0.4"

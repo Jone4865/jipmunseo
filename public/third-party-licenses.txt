@@ -1,6 +1,6 @@
 Jipmunseo (집문서) - third-party software notices
 https://jipmunseo.pages.dev
-Updated: 2026-10-15
+Updated: 2026-10-22
 
 Jipmunseo itself is free software under the GNU Affero General Public
 License v3.0 (AGPL-3.0). Complete source code, including the build scripts
@@ -14,7 +14,7 @@ A human-readable summary (Korean) is at https://jipmunseo.pages.dev/licenses
 Questions: cowhddnjsdl0@gmail.com
 
 ==============================================================================
-A. Served by this site from /vendor/ (redistributed)
+A. Served by this site from /vendor/, /js/ and /fonts/ (redistributed)
 ==============================================================================
 
 ------------------------------------------------------------------------------
@@ -500,18 +500,30 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+------------------------------------------------------------------------------
+A10. JL Sans (a subset of Pretendard 1.3.9) - SIL OFL 1.1 (MODIFIED)
+------------------------------------------------------------------------------
+Files: /fonts/jl-sans.<hash>.woff2, /fonts/jl-sans-ko.<hash>.woff2
+Source: https://github.com/orioncactus/pretendard (npm pretendard 1.3.9,
+dist/web/variable/woff2/PretendardVariable.woff2)
+Used for: all text on the pages (the second file only when a file name or
+watermark uses Korean characters the first file does not have)
+
+Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard.
+
+Modified Version: only the characters this site uses, ASCII, and the 2,350
+common Korean syllables (KS X 1001) are kept. Because "Pretendard" is a
+Reserved Font Name, the font names (name IDs 1, 3, 4, 6, 16, 17, 25) were
+changed to "JL Sans". The copyright, trademark and license fields are kept.
+Build script: dev/fonts.mjs in the source repository.
+License text: C7 (SIL Open Font License 1.1)
+
 ==============================================================================
 B. Loaded by your browser from other servers (not redistributed by this site)
 ==============================================================================
 
 ------------------------------------------------------------------------------
-B1. Fonts
-------------------------------------------------------------------------------
-* Pretendard 1.3.9 - SIL Open Font License 1.1 (from cdn.jsdelivr.net)
-  https://github.com/orioncactus/pretendard
-
-------------------------------------------------------------------------------
-B2. Background removal model and runtime files (from staticimgly.com)
+B1. Background removal model and runtime files (from staticimgly.com)
 ------------------------------------------------------------------------------
 When you first use background removal, your browser downloads the model and
 ONNX Runtime WebAssembly files of @imgly/background-removal-data 1.7.0 from

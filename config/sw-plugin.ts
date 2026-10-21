@@ -6,8 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 
-/** 미리 받지 않는 것: 서비스 워커 자신·서버 설정·검색용 파일·공유 그림·라이선스 원문, vendor(23MB — 그 도구를 한 번 쓰면 저장해요), 없는 주소 화면 */
-const SKIP = /^(sw\.js|_headers|_redirects|404\.html|robots\.txt|sitemap\.xml|third-party-licenses\.txt|assets\/og\.(png|svg)|vendor\/.*)$/;
+/** 미리 받지 않는 것: 서비스 워커 자신·서버 설정·검색용 파일·공유 그림·라이선스 원문, vendor(23MB — 그 도구를 한 번 쓰면 저장해요), 없는 주소 화면,
+ *  한글 더 글꼴(jl-sans-ko 349KB — 파일 이름·워터마크에 첫 글꼴에 없는 한글이 나올 때만 받고, 받으면 저장해요) */
+const SKIP = /^(sw\.js|_headers|_redirects|404\.html|robots\.txt|sitemap\.xml|third-party-licenses\.txt|assets\/og\.(png|svg)|vendor\/.*|fonts\/jl-sans-ko\.[0-9a-f]{10}\.woff2)$/;
 /** Cloudflare Pages 는 index.html → /, hwp.html → /hwp 처럼 확장자 없는 주소로 보내서 그 주소로 저장해요 */
 const PAGE_KEY: Record<string, string> = { "index.html": "./", "hwp.html": "./hwp", "privacy.html": "./privacy", "licenses.html": "./licenses" };
 
