@@ -16,6 +16,15 @@ export function handoffTarget(files: { name: string }[]): { tool: string; url: s
   return files.length === 1 && /\.hwpx?$/i.test(files[0].name) ? { tool: "hwp-view", url: "/#hwp-view" } : { tool: "", url: "/" };
 }
 
+/** 넘기지 못했을 때(저장소가 막힌 브라우저) 갈 주소 — 고른 파일이 말없이 사라지지 않게 도구 화면이 '다시 골라 주세요'를 알리도록
+ *  주소에 표시(?handoff=0)를 달아요. 그런 브라우저는 sessionStorage 표시도 못 남겨서 주소로 알려요(버그 찾기 10차) */
+export const HANDOFF_FAIL_PARAM = "handoff";
+export function handoffFailUrl(url: string): string {
+  const i = url.indexOf("#");
+  const [path, hash] = i < 0 ? [url, ""] : [url.slice(0, i), url.slice(i)];
+  return `${path}?${HANDOFF_FAIL_PARAM}=0${hash}`;
+}
+
 interface Saved { at: number; tool: string; files: File[] }
 
 function openDb(): Promise<IDBDatabase> {

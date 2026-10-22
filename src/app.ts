@@ -199,7 +199,11 @@ route(true);
    첫 화면 무게를 그대로 두려고 표시(sessionStorage 'jms.handoff' = HANDOFF_FLAG)나 남은 저장소가 있을 때만 코드를 받아요 */
 let handoffFlag = false;
 try { handoffFlag = !!sessionStorage.getItem("jms.handoff"); } catch {}
-if (handoffFlag) {
+const handoffFailed = new URLSearchParams(location.search).get("handoff") === "0"; // 넘기지 못함(handoff.ts handoffFailUrl) — 표시는 주소에서 걷어요
+if (handoffFailed) {
+  try { history.replaceState(history.state, "", location.pathname + location.hash); } catch {}
+  toast("파일을 넘겨받지 못했어요. 점선 상자를 눌러 다시 골라 주세요");
+} else if (handoffFlag) {
   import("./handoff.js").then(async (m) => {
     const got = await m.takeHandoff();
     if (got && byId[got.tool]) openWith(got.tool, got.files);

@@ -360,7 +360,7 @@ input[type="range"] { width: 100%; accent-color: var(--acc); min-height: 32px; }
   .hwp-noprint .hwp-print-note { display: block; font-size: 16px; color: #000; }
 }
 
-.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 30px); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 15px; box-shadow: 0 8px 18px -6px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; max-width: calc(100% - 32px); }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 30px); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 15px; box-shadow: 0 8px 18px -6px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; width: max-content; max-width: calc(100% - 32px); } /* left:50% 라 내용 폭이 화면 절반으로 줄어 긴 알림이 세 줄로 접히지 않게(버그 찾기 10차) */
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 @media (max-width: 900px) {
