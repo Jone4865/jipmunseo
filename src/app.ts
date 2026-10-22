@@ -73,17 +73,27 @@ function offerTools(files: File[]): void {
   const ids = toolsForFiles(files);
   const box = $id("drop-offer");
   if (!ids.length) { box.hidden = true; toast(noToolMessage(files)); return; }
-  if (ids.length === 1) { handoff = files; location.hash = ids[0]; return; }
+  if (ids.length === 1) { openWith(ids[0], files); return; }
   // 파일 이름 뒤에 바로 조사를 붙이면 받침에 따라 '로/으로'가 틀려서('계약서 최종본로') '파일로'로 받아요
   const what = files.length === 1 ? `‘${files[0].name}’ 파일` : `파일 ${files.length}개`;
   box.replaceChildren(
     h("p", { class: "offer-title" }, `${what}로 무엇을 할까요?`),
-    h("div", { class: "offer-tools" }, ...ids.map((id) => h("button", { type: "button", class: "btn", onclick: () => { handoff = files; box.hidden = true; location.hash = id; } }, h("span", {}, ...arrowed(byId[id].title))))), // 단추의 flex 틈이 화살표 양옆에 또 붙어 '이미지   →   PDF'로 벌어지지 않게 한 덩어리로
+    h("div", { class: "offer-tools" }, ...ids.map((id) => h("button", { type: "button", class: "btn", onclick: () => { box.hidden = true; openWith(id, files); } }, h("span", {}, ...arrowed(byId[id].title))))), // 단추의 flex 틈이 화살표 양옆에 또 붙어 '이미지   →   PDF'로 벌어지지 않게 한 덩어리로
     // '그만두기'로 상자가 숨으면 초점이 문서 맨 앞으로 빠졌어요 → 바로 아래 도구 목록의 첫 도구로
     h("button", { type: "button", class: "btn ghost sm", onclick: () => { box.hidden = true; holdTaps(); focusIfLost($id("tool-grid").querySelector<HTMLElement>("a")); } }, "그만두기"));
   box.hidden = false;
   box.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   (box.querySelector(".offer-tools button") as HTMLElement | null)?.focus({ preventScroll: true });
+}
+/**
+ * 그 도구를 열고 파일을 넣어요. 그 도구가 이미 열려 있으면 주소가 같아 hashchange 가 오지 않아서 지금 칸에 바로 넣어요
+ * (/hwp 에서 고른 파일이 /#hwp-view 로 넘어왔을 때, 설치한 앱을 HWP 보기에 둔 채 '연결 프로그램'으로 열 때)
+ */
+function openWith(id: string, files: File[]): void {
+  const body = shownTool === id ? view.querySelector<HTMLElement>(".tool-body") : null;
+  if (body) { giveFiles(body, files); return; }
+  handoff = files;
+  location.hash = id;
 }
 /** 도구의 파일 고르기 칸에 넘겨받은 파일을 넣어요(HWP 처럼 코드를 받는 도구는 칸이 생길 때까지 잠깐 기다려요) */
 function giveFiles(body: HTMLElement, files: File[], tries = 0): void {
@@ -184,6 +194,24 @@ function route(first = false) {
 
 window.addEventListener("hashchange", () => route());
 route(true);
+
+/* 안내 페이지(/hwp)에서 고른 파일 — 넘어오는 동안만 IndexedDB 에 두고 꺼내자마자 지워요(src/handoff.ts, 처리방침 '넣은 파일').
+   첫 화면 무게를 그대로 두려고 표시(sessionStorage 'jms.handoff' = HANDOFF_FLAG)나 남은 저장소가 있을 때만 코드를 받아요 */
+let handoffFlag = false;
+try { handoffFlag = !!sessionStorage.getItem("jms.handoff"); } catch {}
+if (handoffFlag) {
+  import("./handoff.js").then(async (m) => {
+    const got = await m.takeHandoff();
+    if (got && byId[got.tool]) openWith(got.tool, got.files);
+    else if (got && !got.tool) offerTools(got.files); // 한글 문서가 아닌 것은 첫 화면에서 쓸 도구를 골라요
+    else toast("파일을 넘겨받지 못했어요. 점선 상자를 눌러 다시 골라 주세요");
+  }).catch(() => toast("파일을 넘겨받지 못했어요. 점선 상자를 눌러 다시 골라 주세요"));
+} else {
+  // 넘기는 중에 탭을 닫아 남은 것은 꺼내지 않고 지워요
+  (indexedDB as IDBFactory & { databases?: () => Promise<{ name?: string }[]> }).databases?.()
+    .then((dbs) => { if (dbs.some((d) => d.name === "jms-handoff")) return import("./handoff.js").then((m) => m.clearHandoff()); })
+    .catch(() => {});
+}
 
 /* 화면 읽기: 도구가 결과를 그리면 그 제목('3쪽짜리 PDF가 만들어졌어요')을 한 번 읽어 줘요.
    예전에는 'PDF 합치기'만 저장 단추로 초점을 옮겨서, 다른 도구는 끝난 걸 화면 읽기로 알 수 없었어요.
