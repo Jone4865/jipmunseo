@@ -10,8 +10,8 @@
 <link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
 <style>
 /* fonts:start — dev/fonts.mjs 가 써요(손으로 고치지 않아요). JL Sans = Pretendard 1.3.9(OFL 1.1)를 줄인 판(예약 이름 때문에 이름을 바꿨어요) */
-@font-face{font-family:"JL Sans";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans.0c6efcf4ba.woff2) format("woff2")}
-@font-face{font-family:"JL Sans Ko";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans-ko.d4cde6bf7c.woff2) format("woff2");unicode-range:U+3131-318E,U+AC00-D7A3}
+@font-face{font-family:"JL Sans";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans.b1ff47e671.woff2) format("woff2")}
+@font-face{font-family:"JL Sans Ko";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans-ko.a55bbf7759.woff2) format("woff2");unicode-range:U+A1-17F,U+3131-318E,U+AC00-D7A3}
 /* fonts:end */
   :root { --paper: #f6f1e7; --sheet: #fffdf7; --ink: #2a2622; --muted: #6f675e; --line: #d9d0c1; --acc: #2563eb; --acc-ink: #1d4ed8; --mat: #2e6a50; }
   * { box-sizing: border-box; }
@@ -62,7 +62,7 @@
   <main class="sheet">
     <h1>오픈소스 라이선스</h1>
     <p class="lead">집문서는 아래 오픈소스 덕분에 만들 수 있었어요. 집문서 자체도 <a href="https://github.com/Jone4865/jipmunseo" target="_blank" rel="noopener">GNU AGPL-3.0 으로 소스를 공개</a>해요.</p>
-    <p class="file"><a href="/third-party-licenses.txt">전체 고지문 보기 (third-party-licenses.txt)</a><span>저작권 문구와 라이선스 원문(MIT·Apache-2.0·LGPL-3.0·GPL-3.0·AGPL-3.0·OFL-1.1·BSD·Zlib·ISC 등)을 모두 담았어요.</span></p>
+    <p class="file"><a href="/third-party-licenses.txt" target="_blank" rel="noopener">전체 고지문 보기 (third-party-licenses.txt)</a><span>저작권 문구와 라이선스 원문(MIT·Apache-2.0·LGPL-3.0·GPL-3.0·AGPL-3.0·OFL-1.1·BSD·Zlib·ISC 등)을 모두 담았어요.</span></p>
 
     <h2>이 사이트가 함께 싣는 라이브러리</h2>
     <p>아래 파일은 이 사이트의 <code>/vendor/</code>·<code>/fonts/</code> 에서 내려받아져요.</p>
@@ -71,7 +71,7 @@
       <tbody>
         <tr><td>rhwp (@rhwp/core) 0.8.7<small>© 2025-2026 Edward Kim · 고치지 않은 npm 배포본 · 안의 Rust 크레이트(MIT·Apache-2.0·BSD·Zlib·ISC 등) 목록은 <a href="/vendor/rhwp-0.8.7/THIRD_PARTY_LICENSES.md">THIRD_PARTY_LICENSES.md</a> · 한컴 전용 영역 글자(PUA) 변환 표는 rhwp v0.8.7 소스에서 옮겨 씀(옛한글 표의 원본은 KTUG HanyangPuaTableProject, 퍼블릭 도메인)</small></td><td><span class="lic">MIT</span></td><td>한글 문서(HWP·HWPX·HWP 3.0) 열어 보기, 쪽 그리기, Word·텍스트로 저장할 때 한컴 전용 기호·옛한글을 보통 글자로 바꾸기</td></tr>
         <tr><td>Noto Serif KR · Noto Sans KR (Regular · Bold)<small>rhwp v0.8.7 assets/fonts(Google Fonts Noto Serif KR·Noto Sans KR을 줄인 서브셋) · Noto Serif KR: (c) 2017-2024 Adobe (http://www.adobe.com/). / Copyright 2012 Google Inc. All Rights Reserved. · Noto Sans KR: Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'</small></td><td><span class="lic">OFL-1.1</span></td><td>한글 문서 쪽을 그릴 때 쓰는 글꼴(기기 안에서 쪽 그림에만 넣어요). 굵은 글꼴(Bold)은 ‘제목 굵기 원본처럼’을 켰을 때만 받아요</td></tr>
-        <tr><td>JL Sans (Pretendard 1.3.9를 줄인 판)<small>Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard · 이 사이트에 쓰는 글자와 자주 쓰는 한글 2,350자만 남기고, 예약 글꼴 이름 때문에 글꼴 이름을 ‘JL Sans’로 바꿈 · <code>/fonts/</code></small></td><td><span class="lic">OFL-1.1</span></td><td>화면 글자 전부. 한글 더(jl-sans-ko)는 파일 이름·워터마크에 첫 파일에 없는 한글이 나올 때만 받아요</td></tr>
+        <tr><td>JL Sans (Pretendard 1.3.9를 줄인 판)<small>Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard · 이 사이트에 쓰는 글자, 자주 쓰는 한글 2,350자, 악센트 붙은 로마자만 남기고, 예약 글꼴 이름 때문에 글꼴 이름을 ‘JL Sans’로 바꿈 · <code>/fonts/</code></small></td><td><span class="lic">OFL-1.1</span></td><td>화면 글자 전부. 한글 더(jl-sans-ko)는 파일 이름·워터마크에 첫 파일에 없는 한글이나 악센트 로마자가 나올 때만 받아요</td></tr>
         <tr><td>pdf-lib 1.17.1<small>© 2019 Andrew Dillon · 안에 pako(MIT·zlib), @pdf-lib/standard-fonts·upng(MIT), tslib(Apache-2.0)</small></td><td><span class="lic">MIT</span></td><td>PDF 합치기·나누기·회전·용량 줄이기, 이미지 → PDF, 사본 PDF, 한글 문서 → PDF</td></tr>
         <tr><td>PDF.js 4.10.38<small>© 2024 Mozilla Foundation · cmaps·기본 글꼴은 각자 라이선스 파일 동봉</small></td><td><span class="lic">Apache-2.0</span></td><td>PDF 쪽 미리보기, 사본 가리기·용량 줄이기에서 쪽 그리기</td></tr>
         <tr><td>fflate 0.8.2<small>© 2023 Arjun Barrett</small></td><td><span class="lic">MIT</span></td><td>여러 파일을 ZIP 으로 묶기(한글 문서 쪽 그림 ZIP 포함), 한글 문서를 Word 파일(.docx)로 만들기</td></tr>

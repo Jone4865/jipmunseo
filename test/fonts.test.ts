@@ -25,7 +25,7 @@ test("CSS·라이선스 페이지가 만든 파일 이름(해시)을 그대로 �
     const s = read(f);
     assert.ok(s.includes(`url(/fonts/${saved.files["jl-sans"]})`), f);
     // 한글 더는 다른 이름 + 한글 범위로 — 같은 이름에 범위를 겹치면 첫 화면에서 같이 받아요
-    assert.ok(s.includes(`font-family:"JL Sans Ko"`) && s.includes(`url(/fonts/${saved.files["jl-sans-ko"]})`) && s.includes("unicode-range:U+3131-318E,U+AC00-D7A3"), f);
+    assert.ok(s.includes(`font-family:"JL Sans Ko"`) && s.includes(`url(/fonts/${saved.files["jl-sans-ko"]})`) && s.includes("unicode-range:U+A1-17F,U+3131-318E,U+AC00-D7A3"), f);
     assert.match(s, /font-family: "JL Sans", "JL Sans Ko", -apple-system/);
   }
   // preload 는 두지 않아요(느린 망에서 첫 그림이 늦어졌어요, dev/fonts.mjs)

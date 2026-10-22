@@ -29,12 +29,24 @@ export function siteChars(root = '.') {
   return set;
 }
 
-/** 영문·숫자·기호(ASCII 보이는 글자 전부) + 자주 쓰는 문장 부호 */
+/** 영문·숫자·기호(ASCII 보이는 글자 전부) + 자주 쓰는 문장 부호 + 줄바꿈 없는 칸(U+A0, 용량 '1.39 KB' 사이 — formatSize) */
 export function basicChars() {
-  let s = '';
+  let s = '\u00a0';
   for (let c = 0x20; c <= 0x7e; c++) s += String.fromCharCode(c);
   return new Set(s + ' ·…‘’“”–—→←↑↓×✓•「」『』《》〈〉％～￦°');
 }
+
+/**
+ * 악센트 붙은 로마자(Latin-1 보충 U+A1~FF · 라틴 확장 A U+100~17F: é·ë·ü·ñ·ł…) — 파일 이름 'Café Zoë.pdf'·워터마크 제출처에 적으면
+ * 그 글자만 기기 글꼴(맥은 Helvetica)로 그려져 굵은 파일 이름에서 혼자 가늘게 튀었어요(버그 찾기 8차). 원본(Pretendard)에 있는 글자라
+ * 한글 더 파일(jl-sans-ko)에 같이 넣고, 그 글자가 나올 때만 받아요(LATIN_MORE_RANGE).
+ */
+export function latinMore() {
+  const set = new Set();
+  for (let c = 0xa1; c <= 0x17f; c++) set.add(String.fromCharCode(c));
+  return set;
+}
+export const LATIN_MORE_RANGE = 'U+A1-17F';
 
 /** 한글 자주 쓰는 글자(KS X 1001 완성형 2,350자) + 한글 자모 — 사용자가 넣는 파일 이름·워터마크 글자용(그 글자가 나올 때만 받는 파일) */
 export function koreanCommon() {
@@ -64,4 +76,12 @@ export function toRange(set) {
     i = j + 1;
   }
   return out.join(',');
+}
+
+/** woff2 파일에 든 글자(코드 포인트) — 시험(test/bug8.test.ts)이 한글 더 파일에 악센트 로마자가 들었는지 봐요 */
+export async function woff2Chars(file) {
+  const { default: fontverter } = await import('fontverter');
+  const { default: fontkit } = await import('@pdf-lib/fontkit');
+  const sfnt = Buffer.from(await fontverter.convert(readFileSync(file), 'sfnt'));
+  return new Set(fontkit.create(sfnt).characterSet);
 }

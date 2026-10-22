@@ -7,7 +7,7 @@
 // JL Sans — Pretendard 1.3.9 Variable(SIL OFL 1.1)을 줄인 판. Pretendard 는 OFL 'Reserved Font Name' 이 있어서
 //   줄인 판(=고친 판)의 이름 표를 'JL Sans' 로 바꿔요(dev/font-names.mjs). 저작권·라이선스 칸은 그대로예요.
 //   - jl-sans    : 화면 문구에 쓰이는 글자 + 영문·숫자·기호. 첫 화면은 이것만 받아요.
-//   - jl-sans-ko : 그 밖의 한글 자주 쓰는 글자(완성형 2,350자)와 자모. 다른 이름('JL Sans Ko')으로 font-family 다음 순서에 둬서,
+//   - jl-sans-ko : 그 밖의 한글 자주 쓰는 글자(완성형 2,350자)와 자모, 악센트 로마자(é·ë·ü… U+A1~17F, 버그 찾기 8차). 다른 이름('JL Sans Ko')으로 font-family 다음 순서에 둬서,
 //                  사용자가 넣은 파일 이름·워터마크 글자에 첫 파일에 없는 한글이 나올 때만 받아요.
 //                  (같은 이름에 범위를 겹치게 두면 Chrome 이 첫 화면에서 그 파일까지 받아요 — SOS수첩에서 확인)
 //   그 밖의 드문 글자는 기기 글꼴로 넘어가요(style.css body 의 다음 글꼴).
@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { renameFont } from './font-names.mjs';
-import { siteChars, basicChars, koreanCommon, sortChars, toRange } from './font-chars.mjs';
+import { siteChars, basicChars, koreanCommon, latinMore, LATIN_MORE_RANGE, sortChars, toRange } from './font-chars.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = path.join(ROOT, 'public/fonts');
@@ -44,7 +44,7 @@ const pSfnt = Buffer.from(await fontverter.convert(fs.readFileSync(path.join(ROO
 const has = new Set(fontkit.create(pSfnt).characterSet.map((cp) => String.fromCodePoint(cp)));
 const want = new Set([...siteChars(ROOT), ...basicChars()]);
 const core = new Set([...want].filter((c) => has.has(c)));
-const ko = new Set([...koreanCommon()].filter((c) => has.has(c) && !core.has(c)));
+const ko = new Set([...koreanCommon(), ...latinMore()].filter((c) => has.has(c) && !core.has(c)));
 /** Pretendard 줄인 판의 이름: Pretendard Variable → JL Sans, PretendardVariable-Bold → JLSans-Bold, 만든 곳 표시(CTUS)도 빼요 */
 const toJLSans = (s) =>
   s.replaceAll('PretendardVariable', 'JLSans').replaceAll('Pretendard Variable', 'JL Sans').replaceAll('Pretendard', 'JL Sans').replace(';CTUS;', ';JLAB;');
@@ -55,7 +55,7 @@ write('jl-sans-ko', Buffer.from(await jl(ko)));
 // JL Sans 는 Pretendard Variable 의 굵기 축(45~920)을 그대로 둬요. 첫 파일은 unicode-range 를 두지 않아요(화면에 늘 한글이 있어요).
 const faces = `/* fonts:start — dev/fonts.mjs 가 써요(손으로 고치지 않아요). JL Sans = Pretendard 1.3.9(OFL 1.1)를 줄인 판(예약 이름 때문에 이름을 바꿨어요) */
 @font-face{font-family:"JL Sans";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/${files['jl-sans']}) format("woff2")}
-@font-face{font-family:"JL Sans Ko";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/${files['jl-sans-ko']}) format("woff2");unicode-range:U+3131-318E,U+AC00-D7A3}
+@font-face{font-family:"JL Sans Ko";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/${files['jl-sans-ko']}) format("woff2");unicode-range:${LATIN_MORE_RANGE},U+3131-318E,U+AC00-D7A3}
 /* fonts:end */`;
 const block = /\/\* fonts:start[\s\S]*?\/\* fonts:end \*\//;
 const patch = (rel, fn, expect = files['jl-sans']) => {

@@ -507,12 +507,14 @@ Files: /fonts/jl-sans.<hash>.woff2, /fonts/jl-sans-ko.<hash>.woff2
 Source: https://github.com/orioncactus/pretendard (npm pretendard 1.3.9,
 dist/web/variable/woff2/PretendardVariable.woff2)
 Used for: all text on the pages (the second file only when a file name or
-watermark uses Korean characters the first file does not have)
+watermark uses Korean or accented Latin characters the first file does not
+have)
 
 Copyright (c) 2021 Kil Hyung-jin, with Reserved Font Name Pretendard.
 
-Modified Version: only the characters this site uses, ASCII, and the 2,350
-common Korean syllables (KS X 1001) are kept. Because "Pretendard" is a
+Modified Version: only the characters this site uses, ASCII, the 2,350
+common Korean syllables (KS X 1001) and accented Latin letters (U+00A1-017F)
+are kept. Because "Pretendard" is a
 Reserved Font Name, the font names (name IDs 1, 3, 4, 6, 16, 17, 25) were
 changed to "JL Sans". The copyright, trademark and license fields are kept.
 Build script: dev/fonts.mjs in the source repository.

@@ -10,7 +10,7 @@ https://jipmunseo.pages.dev (Cloudflare Pages · 예전 `*.vercel.app` 주소는
 - `script-src 'self' 'wasm-unsafe-eval' blob:` — 실행되는 스크립트는 이 사이트 파일뿐이에요(외부 CDN 스크립트 없음).
   `blob:` 는 배경 지우기 라이브러리가 IMG.LY 에서 받은 실행 파일을 워커로 돌릴 때 필요해요.
 - `connect-src 'self' blob: https://staticimgly.com` — 데이터를 보낼 수 있는 곳은 이 사이트와 배경 지우기 모델을 받는 곳뿐.
-- 글꼴은 이 사이트의 `/fonts/`(JL Sans = Pretendard 1.3.9 를 줄인 판, OFL 예약 이름 때문에 이름을 바꿈)라 `font-src 'self'` 예요. 화면 문구에 새 글자가 생기면 `npm run fonts`(시험이 알려 줘요). 첫 파일(약 120KB)만 받고, 첫 파일에 없는 한글은 `JL Sans Ko`(약 350KB)를 그때 받아요.
+- 글꼴은 이 사이트의 `/fonts/`(JL Sans = Pretendard 1.3.9 를 줄인 판, OFL 예약 이름 때문에 이름을 바꿈)라 `font-src 'self'` 예요. 화면 문구에 새 글자가 생기면 `npm run fonts`(시험이 알려 줘요). 첫 파일(약 120KB)만 받고, 첫 파일에 없는 한글·악센트 로마자(é·ü, U+A1~17F)는 `JL Sans Ko`(약 370KB)를 그때 받아요.
 - `frame-ancestors 'none'` + `X-Frame-Options: DENY`, `form-action 'none'`, `object-src 'none'`, `Referrer-Policy: no-referrer`.
 
 ## 도구
@@ -65,7 +65,7 @@ https://jipmunseo.pages.dev (Cloudflare Pages · 예전 `*.vercel.app` 주소는
 - 한글·한컴·HWP·HWPX는 ㈜한컴(옛 ㈜한글과컴퓨터)의 상표예요. 집문서는 한컴과 제휴·후원·승인 관계가 없는 독립 도구예요. Microsoft Word는 Microsoft Corporation의 상표이고, 카카오톡은 ㈜카카오의 상표예요.
 
 ### 그 밖에 쓴 오픈소스 (각자의 라이선스)
-pdf-lib (MIT) · PDF.js (Apache-2.0) · fflate (MIT) · exifr (MIT) · heic-to (LGPL-3.0, CSP 빌드) · ONNX Runtime Web (MIT) — `public/vendor/` 에 그대로 들어 있어요 (Vite 가 다시 묶지 않고 `/vendor/…` 주소 그대로 배포). 글꼴 Pretendard (OFL) 는 jsDelivr 에서 불러와요.
+pdf-lib (MIT) · PDF.js (Apache-2.0) · fflate (MIT) · exifr (MIT) · heic-to (LGPL-3.0, CSP 빌드) · ONNX Runtime Web (MIT) — `public/vendor/` 에 그대로 들어 있어요 (Vite 가 다시 묶지 않고 `/vendor/…` 주소 그대로 배포). 글꼴 JL Sans(Pretendard OFL 줄인 판)는 `public/fonts/`(`npm run fonts`).
 
 - **라이선스 고지**: `public/third-party-licenses.txt` (→ `/third-party-licenses.txt`, 저작권 문구 + MIT·Apache-2.0·LGPL-3.0·GPL-3.0·AGPL-3.0 원문 전체)와
   `public/licenses.html` (→ `/licenses`, 한국어 요약 · LGPL 원본 소스 안내). 푸터에서 링크해요. **vendor 파일을 바꾸면 두 파일도 같이 고쳐요.**
