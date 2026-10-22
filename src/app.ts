@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 // 집문서 — 라우터 (#pdf-merge 같은 주소로 도구마다 공유 가능)
-import { h, ICONS, arrowed, filesFromPaste, toast, focusIfLost, revealIfBelow } from "./ui.js";
+import { h, ICONS, arrowed, filesFromPaste, toast, focusIfLost, revealIfBelow, resultFiles } from "./ui.js";
 import { installTapGuard, holdTaps } from "./tap.js";
 import { mountMerge, mountSplit, mountOrganize, mountPdfCompress } from "./tools-pdf.js";
 import { mountImgToPdf, mountCompress, mountExif } from "./tools-img.js";
@@ -8,7 +8,7 @@ import { mountBg } from "./tools-bg.js";
 import { mountMask } from "./tools-mask.js";
 import { art } from "./art.js";
 import { TOOL_INFO, toolGridHtml } from "./tool-list.js";
-import { toolsForFiles, noToolMessage, sayArrows } from "./lib.js";
+import { toolsForFiles, noToolMessage, sayArrows, nextToolsFor, pickNextSource } from "./lib.js";
 import { stampResult } from "./motion.js";
 import { PREF, readPref, writePref, pushRecent, parseRecent } from "./prefs.js";
 
@@ -103,6 +103,31 @@ function giveFiles(body: HTMLElement, files: File[], tries = 0): void {
   } catch { toast("파일을 점선 상자에 다시 놓아 주세요"); }
 }
 
+/**
+ * 결과 아래 '이어서' 줄(벤치마킹 2026-10-22, iLovePDF·Smallpdf): 합친 PDF를 줄이거나 HWP 를 PDF 로 바꿔 합치려면
+ * 내려받고 → 모든 도구 → 다시 파일 고르기를 해야 했어요(휴대폰은 방금 받은 파일을 다운로드 폴더에서 다시 찾아야 해요).
+ * 결과 파일을 그대로 다음 도구의 파일 칸에 넣어요. 결과가 여러 개(나누기·사진 여러 장)면 어느 걸 넘길지 몰라서 두지 않아요
+ */
+function addNextRow(res: HTMLElement, current: string | null): void {
+  const old = res.querySelector<HTMLElement>(":scope > .next-tools");
+  const rows = [...res.querySelectorAll<HTMLElement>(".ritem")].map((r) => resultFiles.get(r)).filter((x): x is { name: string; blob: Blob } => !!x);
+  const src = current ? pickNextSource(rows.map((r) => ({ ...r, type: r.blob.type }))) : null;
+  const ids = src ? nextToolsFor({ name: src.name, type: src.blob.type }, current as string).filter((id) => byId[id]) : [];
+  // 사진 여러 장처럼 결과 줄이 하나씩 붙는 도구는 줄이 늘 때마다 다시 봐요(첫 줄만 보고 넘기지 않게)
+  const key = src && ids.length ? `${src.name}|${src.blob.size}|${current}` : "";
+  if (old && old.dataset.key === key) return;
+  old?.remove();
+  if (!src || !key) return;
+  const lbl = h("span", { class: "next-lbl", id: "next-lbl" }, "이 파일로 이어서");
+  const row = h("div", { class: "next-tools", role: "group", "aria-labelledby": "next-lbl" }, lbl,
+    ...ids.map((id) => h("button", { type: "button", class: "next-btn", onclick: () => {
+      handoff = [new File([src.blob], src.name, { type: src.blob.type || (/\.pdf$/i.test(src.name) ? "application/pdf" : "") })];
+      location.hash = id;
+    } }, h("span", {}, ...arrowed(byId[id].title)))));
+  row.dataset.key = key;
+  res.append(row);
+}
+
 const home = $id("home");
 const view = $id("tool-view");
 const other = $id("other-tools");
@@ -166,11 +191,19 @@ route(true);
 const srStatus = $id("sr-status");
 let lastSaid = { text: "", at: 0 };
 new MutationObserver((recs) => {
+  // 이미 있는 결과에 줄이 더 붙은 것(사진 여러 장) — '이어서' 줄만 다시 봐요
+  const grown = new Set<HTMLElement>();
+  for (const r of recs) {
+    const res = r.target instanceof Element ? r.target.closest<HTMLElement>(".result") : null;
+    if (res) grown.add(res);
+  }
+  for (const res of grown) addNextRow(res, shownTool);
   for (const r of recs) for (const n of r.addedNodes) {
     if (!(n instanceof HTMLElement)) continue;
     const res = n.matches(".result") ? n : n.querySelector(".result");
     const h2 = res?.querySelector("h2");
     if (!h2) continue;
+    addNextRow(res as HTMLElement, shownTool);
     // 제목 옆 알약('52% 줄었어요')은 쉼표로 띄우고, 화살표는 '…에서 …로'로 읽어요
     const c = h2.cloneNode(true) as HTMLElement;
     c.querySelectorAll(".pill").forEach((p) => p.prepend(", "));

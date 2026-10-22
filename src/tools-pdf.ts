@@ -2,7 +2,7 @@
 import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
-import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, type CompressMode, type CompressLevel } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, FIT_STEPS, FIT_TARGETS_MB, fitToSize, mbToBytes, parseTargetMb, type CompressMode, type CompressLevel, type CompressPreset } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
 import type { ThumbRenderer } from "./ui.js";
 import type { PdfjsDocument } from "./vendor.js";
@@ -398,9 +398,10 @@ export function mountOrganize(root: HTMLElement): Mounted {
 export function mountPdfCompress(root: HTMLElement): Mounted {
   let cur: { file: File; buf: ArrayBuffer; pages: number } | null = null;
   const C = () => cur as NonNullable<typeof cur>; // PDF 를 연 뒤에만 불림
-  // 방법·정도는 지난번에 고른 값으로 시작해요(prefs.ts)
+  // 방법·정도·목표 용량은 지난번에 고른 값으로 시작해요(prefs.ts)
   let mode: CompressMode = pickPref<CompressMode>(readPref(PREF.pdfMode), ["images", "raster"], "images");
-  let level: CompressLevel = pickPref<CompressLevel>(readPref(PREF.pdfLevel), ["light", "normal", "strong"], "normal");
+  let level: Level = pickPref<Level>(readPref(PREF.pdfLevel), ["light", "normal", "strong", "fit"], "normal");
+  let target: number = parseTargetMb(readPref(PREF.pdfTarget)) ?? 5;
   const err = alertBox();
   const prog = progress();
   const out = h("div");
@@ -409,23 +410,42 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
   const modeHint = h("div", { class: "hint" });
   const levelHint = h("div", { class: "hint" });
   const modeSeg = seg<CompressMode>([{ value: "images", label: "사진만 줄이기" }, { value: "raster", label: "쪽을 통째로 이미지로" }], mode, (v) => { mode = v; writePref(PREF.pdfMode, v); sync(); });
-  const levelSeg = seg<CompressLevel>([{ value: "light", label: "조금" }, { value: "normal", label: "보통" }, { value: "strong", label: "많이" }], level, (v) => { level = v; writePref(PREF.pdfLevel, v); sync(); });
+  const levelSeg = seg<Level>([{ value: "light", label: "조금" }, { value: "normal", label: "보통" }, { value: "strong", label: "많이" }, { value: "fit", label: "용량 맞추기" }], level, (v) => { level = v; writePref(PREF.pdfLevel, v); sync(); });
+  // 목표 용량: 자주 막히는 1·2·5·10MB 는 누르기로, 그 밖은 칸에 적어요(벤치마킹 2026-10-22)
+  const targetSeg = seg<number>(FIT_TARGETS_MB.map((n) => ({ value: n, label: `${n}MB` })), -1, (v) => setTarget(v));
+  targetSeg.setAttribute("aria-label", "목표 용량");
+  const targetIn = h("input", { class: "input num", type: "text", inputmode: "decimal", "aria-label": "목표 용량 직접 적기(MB)", placeholder: "직접", autocomplete: "off" }) as HTMLInputElement;
+  targetIn.addEventListener("input", () => { const n = parseTargetMb(targetIn.value); if (n !== null) setTarget(n, false); });
+  targetIn.addEventListener("change", () => { if (parseTargetMb(targetIn.value) === null) targetIn.value = String(target); });
+  const fitBox = h("div", { class: "row fit-row" }, targetSeg, h("span", { class: "fit-own" }, targetIn, h("span", { class: "muted" }, "MB 이하")));
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "용량 줄이기");
   const work = h("div", { hidden: true },
     h("div", { class: "panel" },
       h("div", { class: "panel-head" }, fileLine, h("button", { type: "button", class: "btn ghost sm", onclick: () => { reset(); holdTaps(); focusIfLost(dz); } }, "다른 PDF")),
       h("div", { class: "opts" },
         h("div", { class: "opt" }, h("span", { class: "lbl" }, "방법"), modeSeg, modeHint),
-        h("div", { class: "opt" }, h("span", { class: "lbl" }, "얼마나 줄일까요?"), levelSeg, levelHint))),
+        h("div", { class: "opt" }, h("span", { class: "lbl" }, "얼마나 줄일까요?"), levelSeg, fitBox, levelHint))),
     stickyActions(go));
   root.append(dz, err.el, work, prog.el, out);
 
+  function setTarget(n: number, fillInput = true): void {
+    target = n; writePref(PREF.pdfTarget, String(n));
+    if (fillInput) targetIn.value = (FIT_TARGETS_MB as readonly number[]).includes(n) ? "" : String(n);
+    sync();
+  }
   function sync() {
     modeHint.textContent = mode === "images"
       ? "글자·링크·책갈피는 그대로 두고 안에 든 사진만 다시 저장해요. 글자만 있는 PDF는 많이 줄지 않아요."
       : "스캔한 서류에 좋아요. 쪽마다 그림으로 다시 그려서 가장 작아지지만, 글자를 고르거나 검색할 수 없고 링크·책갈피·입력 칸이 빠져요.";
-    const p = COMPRESS_PRESETS[mode][level];
-    levelHint.textContent = mode === "images" ? `사진 긴 변 ${p.maxSide}px · 화질 ${Math.round(p.quality * 100)}%` : `${p.dpi}dpi · 화질 ${Math.round(p.quality * 100)}%`;
+    fitBox.hidden = level !== "fit";
+    targetSeg.setValue((FIT_TARGETS_MB as readonly number[]).includes(target) ? target : -1);
+    if (!(FIT_TARGETS_MB as readonly number[]).includes(target) && document.activeElement !== targetIn) targetIn.value = String(target);
+    if (level === "fit") {
+      const already = cur && cur.file.size <= mbToBytes(target) ? ` 이 PDF는 이미 ${formatSize(cur.file.size)}라 줄이지 않아도 돼요.` : "";
+      levelHint.textContent = (mode === "images"
+        ? "여러 정도로 줄여 보고 목표 안에 드는 것 중 가장 선명한 것을 골라요. 사진만 줄여서 안 되면 쪽을 통째로 이미지로 바꿔요."
+        : "여러 정도로 줄여 보고 목표 안에 드는 것 중 가장 선명한 것을 골라요.") + already;
+    } else levelHint.textContent = presetText(mode, COMPRESS_PRESETS[mode][level]);
     out.replaceChildren();
   }
   let loadGen = 0; // 여는 중에 다른 PDF 를 고르면 늦게 끝난 옛 열기는 버려요
@@ -454,48 +474,76 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
     finally { if (g === loadGen) prog.hide(); }
   }
 
+  /** 한 번 줄이기. tag 는 진행 표시 앞에 붙는 말('2번째 맞춰 보는 중 · ') */
+  async function shrink(m: CompressMode, p: CompressPreset, tag = ""): Promise<{ bytes: Bytes; stats: ShrinkStats | null }> {
+    if (m === "images") {
+      const buf = C().buf.slice(0);
+      prog.set(0, `${tag}PDF 안의 사진을 찾는 중…`);
+      return runPdf<{ bytes: Bytes; stats: ShrinkStats }>("compress", { buf, maxSide: p.maxSide, quality: p.quality }, [buf],
+        (d, t) => prog.set(d / t * 0.95, `${tag}${d}/${t} 줄이는 중…`));
+    }
+    const doc = await openPdfjs(C().buf.slice(0));
+    const pages: { bytes: Bytes; wPt: number; hPt: number }[] = [];
+    try {
+      for (let i = 0; i < doc.numPages; i++) {
+        prog.set(i / doc.numPages * 0.8, `${tag}${i + 1}/${doc.numPages}쪽 그리는 중…`);
+        const r = await renderPdfPage(doc, i, p.dpi);
+        const b = await canvasToBlob(r.canvas, "image/jpeg", p.quality);
+        r.canvas.width = r.canvas.height = 0;
+        pages.push({ bytes: new Uint8Array(await b.arrayBuffer()), wPt: r.wPt, hPt: r.hPt });
+      }
+    } finally { doc.destroy?.(); }
+    const { bytes } = await runPdf<{ bytes: Bytes }>("pages", { pages }, pages.map((x) => x.bytes.buffer), (d, t) => prog.set(0.8 + d / t * 0.15, `${tag}${d}/${t}쪽 묶는 중…`));
+    return { bytes, stats: null };
+  }
+
   async function run() {
     err.hide(); out.replaceChildren(); go.disabled = true;
-    const p = COMPRESS_PRESETS[mode][level];
     const before = C().file.size;
     try {
-      let bytes: Uint8Array<ArrayBuffer>, stats: ShrinkStats | null = null;
-      if (mode === "images") {
-        const buf = C().buf.slice(0);
-        prog.set(0, "PDF 안의 사진을 찾는 중…");
-        ({ bytes, stats } = await runPdf<{ bytes: Uint8Array<ArrayBuffer>; stats: ShrinkStats }>("compress", { buf, maxSide: p.maxSide, quality: p.quality }, [buf],
-          (d, t) => prog.set(d / t * 0.95, `${d}/${t} 줄이는 중…`)));
+      let bytes: Bytes, stats: ShrinkStats | null = null, usedMode: CompressMode = mode;
+      const notes: string[] = [];
+      let fitPill: HTMLElement | null = null;
+      if (level === "fit") {
+        // 사진만 줄이기를 골랐으면 그걸 먼저 다 해 보고, 그래도 넘치면 쪽을 그림으로(글자가 사라지니 결과에 적어요)
+        const modes: CompressMode[] = mode === "images" ? ["images", "raster"] : ["raster"];
+        const limit = mbToBytes(target);
+        const smallest: number[] = modes.map(() => Infinity);
+        const r = await fitToSize(modes.map((m) => FIT_STEPS[m]), limit, async (p, g, n) => {
+          const res = await shrink(modes[g], p, `${n}번째로 맞춰 보는 중 · `);
+          smallest[g] = Math.min(smallest[g], res.bytes.byteLength);
+          return { size: res.bytes.byteLength, out: res };
+        });
+        ({ bytes, stats } = r.out); usedMode = modes[r.group];
+        const goal = `${fmtMb(target)} 이하`;
+        fitPill = h("span", { class: `pill ${r.fits ? "good" : "bad"}` }, r.fits ? `${goal} 맞춤` : `${goal}로 못 줄였어요`);
+        if (usedMode !== mode) notes.push(`사진만 줄여서는 ${formatSize(smallest[0])}까지라 쪽을 통째로 이미지로 바꿨어요. 글자를 고르거나 검색할 수 없어요.`);
+        if (r.fits) notes.push(`${goal}에 드는 것 중 가장 선명하게 저장했어요(${presetText(usedMode, r.step)}).`);
+        else notes.push(`가장 작게 해도 ${formatSize(r.size)}예요. 'PDF 나누기'로 나눠서 보내 보세요.`);
       } else {
-        const doc = await openPdfjs(C().buf.slice(0));
-        const pages: { bytes: Uint8Array<ArrayBuffer>; wPt: number; hPt: number }[] = [];
-        try {
-          for (let i = 0; i < doc.numPages; i++) {
-            prog.set(i / doc.numPages * 0.8, `${i + 1}/${doc.numPages}쪽 그리는 중…`);
-            const r = await renderPdfPage(doc, i, p.dpi);
-            const b = await canvasToBlob(r.canvas, "image/jpeg", p.quality);
-            r.canvas.width = r.canvas.height = 0;
-            pages.push({ bytes: new Uint8Array(await b.arrayBuffer()), wPt: r.wPt, hPt: r.hPt });
-          }
-        } finally { doc.destroy?.(); }
-        ({ bytes } = await runPdf<{ bytes: Uint8Array<ArrayBuffer> }>("pages", { pages }, pages.map((x) => x.bytes.buffer), (d, t) => prog.set(0.8 + d / t * 0.15, `${d}/${t}쪽 묶는 중…`)));
+        ({ bytes, stats } = await shrink(mode, COMPRESS_PRESETS[mode][level]));
       }
       prog.set(1, "완료!");
       const blob = pdfBlob(bytes);
       const pct = savedPercent(before, blob.size);
-      const notes: string[] = [];
-      if (stats) {
+      if (stats && usedMode === "images") {
         notes.push(stats.images ? `사진 ${stats.images}장 중 ${stats.recompressed}장을 줄였어요.` : "PDF 안에 사진이 없어요.");
         if (stats.images && !stats.canRecode) notes.push("이 브라우저는 사진을 다시 그릴 수 없어서 사진은 그대로 뒀어요. 크롬·엣지·최신 사파리에서 해 보세요.");
       }
       if (pct < 0) notes.push("원본이 더 작아요. 원본을 그대로 쓰세요.");
-      else if (pct < 3) notes.push(mode === "images" ? "더 줄일 게 거의 없었어요. 스캔한 서류라면 '쪽을 통째로 이미지로'를 써 보세요." : "더 줄일 게 거의 없었어요. 원본을 그대로 써도 돼요.");
+      else if (pct < 3 && level !== "fit") notes.push(mode === "images" ? "더 줄일 게 거의 없었어요. 스캔한 서류라면 '쪽을 통째로 이미지로'를 써 보세요." : "더 줄일 게 거의 없었어요. 원본을 그대로 써도 돼요.");
       out.replaceChildren(h("div", { class: "result", id: "result" },
         h("h2", {}, icon("ok"), ...arrowed(`${formatSize(before)} → ${formatSize(blob.size)}`),
-          h("span", { class: `pill ${pct > 0 ? "good" : pct < 0 ? "bad" : ""}` }, pct > 0 ? `${pct}% 줄었어요` : pct < 0 ? `${-pct}% 커졌어요` : "거의 그대로")),
+          h("span", { class: `pill ${pct > 0 ? "good" : pct < 0 ? "bad" : ""}` }, pct > 0 ? `${pct}% 줄었어요` : pct < 0 ? `${-pct}% 커졌어요` : "거의 그대로"), fitPill),
         notes.length ? h("p", { class: "hint", style: "margin:-4px 0 6px" }, notes.join(" ")) : null,
-        resultItem({ name: outName(C().file.name, "줄임", "pdf"), blob, extra: mode === "images" ? "글자 그대로" : `${C().pages}쪽 · 이미지 PDF` })));
+        resultItem({ name: outName(C().file.name, "줄임", "pdf"), blob, extra: usedMode === "images" ? "글자 그대로" : `${C().pages}쪽 · 이미지 PDF` })));
     } catch (e) { err.show(errMsg(e)); }
     finally { prog.hide(); go.disabled = false; }
   }
   return { unmount: reset };
 }
+type Level = CompressLevel | "fit";
+/** '사진 긴 변 1800px · 화질 72%' / '120dpi · 화질 70%' */
+const presetText = (m: CompressMode, p: CompressPreset): string => m === "images" ? `사진 긴 변 ${p.maxSide}px · 화질 ${Math.round(p.quality * 100)}%` : `${p.dpi}dpi · 화질 ${Math.round(p.quality * 100)}%`;
+/** 2 → '2MB', 1.5 → '1.5MB' */
+const fmtMb = (n: number): string => `${n}MB`;

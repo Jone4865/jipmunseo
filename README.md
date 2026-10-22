@@ -69,6 +69,7 @@ pdf-lib (MIT) · PDF.js (Apache-2.0) · fflate (MIT) · exifr (MIT) · heic-to (
 
 - **라이선스 고지**: `public/third-party-licenses.txt` (→ `/third-party-licenses.txt`, 저작권 문구 + MIT·Apache-2.0·LGPL-3.0·GPL-3.0·AGPL-3.0 원문 전체)와
   `public/licenses.html` (→ `/licenses`, 한국어 요약 · LGPL 원본 소스 안내). 푸터에서 링크해요. **vendor 파일을 바꾸면 두 파일도 같이 고쳐요.**
+- 벤치마킹(2026-10-22, `test/bench.test.ts`, 기록 `_workspace/review/benchmark/2026-10-22/anollim.md`): 결과 아래 **'이 파일로 이어서'**(iLovePDF·Smallpdf) — 결과 PDF·사진 한 개를 다음 도구의 파일 칸에 그대로 넣어요(`app.ts` `addNextRow`, `lib.ts` `nextToolsFor`·`pickNextSource`, 결과 줄의 파일은 `ui.ts` `resultFiles`). 결과가 여러 개(나누기·사진 여러 장)면 두지 않아요. PDF 용량 줄이기 **'용량 맞추기'**(BentoPDF 목표 용량) — 1·2·5·10MB 또는 직접 적은 MB(1000² 로 세요) 안에 드는 것 중 가장 덜 줄인 단계를 골라요(`lib.ts` `fitToSize`·`FIT_STEPS`, 사진만 줄여서 안 되면 쪽을 그림으로 바꾸고 결과에 적어요, `jms.pdf.target`). 이미지 압축 **장마다 용량 한도(KB)** — 화질을 10씩 낮추고 그래도 넘치면 크기를 줄여요(`imgFitSteps`, `jms.img.maxkb`). 처리방침 10월 22일 판.
 
 ## 개발 (TypeScript + Vite)
 

@@ -246,6 +246,93 @@ export const COMPRESS_PRESETS: Record<CompressMode, Record<CompressLevel, Compre
   },
 };
 
+/*
+ * 목표 용량에 맞추기(벤치마킹 2026-10-22, BentoPDF 'Target File Size'): 제출 사이트는 '5MB 이하'처럼 용량으로 막는데
+ * 조금·보통·많이로는 몇 번을 다시 해 봐야 했어요. 단계마다 줄여 보고 목표 안에 드는 것 중 가장 덜 줄인(화질 좋은) 것을 골라요.
+ * 사이트마다 MB 를 1000² 로도 1024² 로도 세서, 더 작은 1000² 로 맞춰요(어느 쪽으로 세도 넘지 않아요).
+ */
+export const FIT_STEPS: Record<CompressMode, CompressPreset[]> = {
+  images: [COMPRESS_PRESETS.images.light, COMPRESS_PRESETS.images.normal, COMPRESS_PRESETS.images.strong, { maxSide: 1000, dpi: 0, quality: 0.5 }],
+  raster: [COMPRESS_PRESETS.raster.light, COMPRESS_PRESETS.raster.normal, COMPRESS_PRESETS.raster.strong, { maxSide: 0, dpi: 72, quality: 0.5 }],
+};
+export const FIT_TARGETS_MB = [1, 2, 5, 10] as const;
+export const mbToBytes = (mb: number): number => Math.floor(mb * 1_000_000);
+/** 목표 칸: 0.1~500 MB, 소수 한 자리까지. 아니면 null */
+export function parseTargetMb(raw: string | null | undefined): number | null {
+  const s = String(raw ?? "").trim().replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(s)) return null;
+  const n = Math.round(Number(s) * 10) / 10;
+  return n >= 0.1 && n <= 500 ? n : null;
+}
+export interface FitResult<S, T> { step: S; group: number; out: T; size: number; fits: boolean; tries: number }
+/**
+ * groups 를 차례로(앞 묶음일수록 원본을 덜 바꿔요 — 사진만 줄이기, 그다음 쪽을 그림으로) 써 봐요.
+ * 묶음마다 가장 센 단계를 먼저 해서 그래도 넘치면 그 묶음은 건너뛰고, 들어오면 약한 단계부터 처음 들어오는 것을 골라요.
+ * 어느 것도 안 되면 가장 작았던 결과를 fits:false 로 돌려줘요.
+ */
+export async function fitToSize<S, T>(groups: readonly (readonly S[])[], target: number, tryStep: (s: S, group: number, n: number) => Promise<{ size: number; out: T }>): Promise<FitResult<S, T>> {
+  let tries = 0;
+  let best: FitResult<S, T> | null = null;
+  const attempt = async (s: S, g: number): Promise<FitResult<S, T>> => {
+    const r = await tryStep(s, g, ++tries);
+    const res = { step: s, group: g, out: r.out, size: r.size, fits: r.size <= target, tries };
+    if (!best || res.size < best.size) best = res;
+    return res;
+  };
+  for (let g = 0; g < groups.length; g++) {
+    const steps = groups[g];
+    if (!steps.length) continue;
+    const strongest = await attempt(steps[steps.length - 1], g);
+    if (!strongest.fits) continue;
+    for (let i = 0; i < steps.length - 1; i++) {
+      const r = await attempt(steps[i], g);
+      if (r.fits) return { ...r, tries };
+    }
+    return { ...strongest, tries };
+  }
+  if (!best) throw new Error("줄일 방법이 없어요.");
+  return { ...(best as FitResult<S, T>), fits: false, tries };
+}
+
+/**
+ * 이미지 압축의 장마다 용량 한도(KB) — 원서·지원서 사진 칸은 '200KB 이하'처럼 막아요. 1KB = 1000B 로 세요(더 작은 쪽).
+ * 앞 묶음은 크기 그대로 화질만 낮추고(고른 화질이 가장 높은 값), 그래도 넘치면 크기를 줄여요. PNG 는 화질이 없어 크기만.
+ */
+export interface ImgFitStep { quality: number; scale: number }
+export function imgFitSteps(quality: number, lossy: boolean): ImgFitStep[][] {
+  const q0 = Math.min(100, Math.max(10, Math.round(quality)));
+  const qs: number[] = [];
+  if (lossy) for (let q = q0; q >= 40; q -= 10) qs.push(q);
+  if (!qs.length) qs.push(q0);
+  const small = lossy ? Math.min(q0, 70) : q0;
+  return [qs.map((q) => ({ quality: q, scale: 1 })), [0.85, 0.7, 0.55, 0.4, 0.3].map((scale) => ({ quality: small, scale }))];
+}
+/** 용량 한도 칸(KB): 빈칸이면 "" (한도 없음), 10~50000 정수만 */
+export function kbPref(raw: string | null | undefined): string {
+  const s = String(raw ?? "").trim();
+  if (!/^\d+$/.test(s)) return "";
+  const n = Number(s);
+  return n >= 10 && n <= 50000 ? String(n) : "";
+}
+
+/**
+ * 결과 파일로 이어서 쓸 도구(벤치마킹 2026-10-22, iLovePDF·Smallpdf 결과 화면의 '이어서 하기').
+ * 합친 PDF를 줄이고, HWP 를 PDF 로 바꿔 다른 서류와 합치는 일이 많아요. 지금 도구는 빼요.
+ */
+export function nextToolsFor(file: { name?: string; type?: string }, current: string): string[] {
+  const k = kindOf(file);
+  const ids = k === "pdf" ? ["pdf-compress", "pdf-merge", "id-mask", "pdf-split", "pdf-organize"]
+    : k === "image" ? ["img-to-pdf", "img-compress", "id-mask", "exif-clean"] : [];
+  return ids.filter((id) => id !== current);
+}
+/** 결과 줄 여러 개 중 이어서 넘길 하나: PDF 가 하나면 그것(가리기의 JPG+PDF), 아니면 줄이 하나일 때만 */
+export function pickNextSource<T extends { name: string; type?: string }>(items: readonly T[]): T | null {
+  const pdfs = items.filter((x) => kindOf(x) === "pdf");
+  if (pdfs.length === 1) return pdfs[0];
+  if (!pdfs.length && items.length === 1 && kindOf(items[0]) === "image") return items[0];
+  return null;
+}
+
 /** 긴 변이 maxSide 를 넘지 않게 (확대는 안 함, 0 이면 그대로) */
 export function scaleToMaxSide(w: number, h: number, maxSide: number): { width: number; height: number; scale: number } {
   const long = Math.max(w, h);

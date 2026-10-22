@@ -2,7 +2,7 @@
 import { type SegOption, h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref, intPref, sizePref } from "./prefs.js";
-import { formatSize, outName, moveItem, sortByName, isSortedByName, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord, fitToSize, imgFitSteps, kbPref } from "./lib.js";
 import { vendorImport, type ExifrModule, type Exifr, type ExifData } from "./vendor.js";
 import type { Mounted } from "./app.js";
 import type { PageSize } from "./lib.js";
@@ -169,6 +169,11 @@ export function mountCompress(root: HTMLElement): Mounted {
   // 칸에 남는 값 = 기억하는 값 = 쓰는 값. 예전에는 '0.5'를 넣으면 기억은 안 하면서 그대로 써서 1×1 그림이 나왔어요(버그 6차)
   const saveMax = () => { maxW.value = sizePref(maxW.value); maxH.value = sizePref(maxH.value); writePref(PREF.imgMaxW, maxW.value); writePref(PREF.imgMaxH, maxH.value); out.replaceChildren(); };
   maxW.addEventListener("change", saveMax); maxH.addEventListener("change", saveMax);
+  // 장마다 용량 한도(벤치마킹 2026-10-22): 원서·지원서 사진 칸의 '200KB 이하'에 맞춰요. 비우면 한도 없음
+  const maxKb = h("input", { class: "input num", type: "text", inputmode: "numeric", placeholder: "없음", "aria-label": "장마다 용량 한도(KB)", autocomplete: "off", value: kbPref(readPref(PREF.imgMaxKb)) }) as HTMLInputElement;
+  const saveKb = () => { maxKb.value = kbPref(maxKb.value); writePref(PREF.imgMaxKb, maxKb.value); out.replaceChildren(); };
+  maxKb.addEventListener("change", saveKb);
+  maxKb.addEventListener("input", () => out.replaceChildren());
   maxW.addEventListener("input", () => out.replaceChildren()); maxH.addEventListener("input", () => out.replaceChildren());
   const qOpt = h("div", { class: "opt" }, h("span", { class: "lbl" }, "화질 ", qVal), q, h("div", { class: "hint" }, "70~85%면 눈으로 차이를 느끼기 어려워요. PNG는 화질 설정이 없어요."));
   const fmtOpts: SegOption<string>[] = [
@@ -189,7 +194,11 @@ export function mountCompress(root: HTMLElement): Mounted {
       qOpt,
       h("div", { class: "opt" }, h("span", { class: "lbl" }, "최대 크기 (px, 비율 유지)"), h("div", { class: "row" }, maxW, h("span", { class: "muted" }, "×"), maxH),
         h("div", { class: "row", style: "margin-top:8px" }, ...[["1920", "FHD"], ["1280", "1280"], ["800", "800"]].map(([v, l]) => h("button", { type: "button", class: "btn sm", onclick: () => { maxW.value = v; maxH.value = v; saveMax(); } }, l)),
-          h("button", { type: "button", class: "btn sm ghost", onclick: () => { maxW.value = ""; maxH.value = ""; saveMax(); } }, "그대로")))));
+          h("button", { type: "button", class: "btn sm ghost", onclick: () => { maxW.value = ""; maxH.value = ""; saveMax(); } }, "그대로"))),
+      h("div", { class: "opt" }, h("span", { class: "lbl" }, "장마다 용량 한도 (선택)"), h("div", { class: "row" }, maxKb, h("span", { class: "muted" }, "KB 이하")),
+        h("div", { class: "row", style: "margin-top:8px" }, ...["100", "200", "500"].map((v) => h("button", { type: "button", class: "btn sm", onclick: () => { maxKb.value = v; saveKb(); } }, `${v}KB`)),
+          h("button", { type: "button", class: "btn sm ghost", onclick: () => { maxKb.value = ""; saveKb(); } }, "없음")),
+        h("div", { class: "hint" }, "적으면 그 안에 드는 가장 높은 화질로 저장하고, 화질만으로 안 되면 크기를 줄여요. 위 화질이 가장 높은 값이에요."))));
   root.append(dz, err.el, panel, stickyActions(go), prog.el, out);
   // 사진을 더하거나 빼거나 형식·화질·크기를 바꾸면 지난 결과는 지금 설정과 달라요(옛 결과·내려받기를 걷어요)
   list.onEdit = () => out.replaceChildren();
@@ -235,6 +244,8 @@ export function mountCompress(root: HTMLElement): Mounted {
     const its = list.items.filter(isDecoded);
     const results: { it: ImgItem; blob: Blob; type: string; w: number; h: number; name: string }[] = [];
     const mw = Number(sizePref(maxW.value)) || 0, mh = Number(sizePref(maxH.value)) || 0;
+    const limit = Number(kbPref(maxKb.value)) * 1000 || 0;
+    let missed = 0;
     try {
       for (let i = 0; i < its.length; i++) {
         const it = its[i];
@@ -242,12 +253,33 @@ export function mountCompress(root: HTMLElement): Mounted {
         const img = await decodeImage(it.file);
         const type = await targetType(it.file);
         const fit = fitWithin(img.width, img.height, mw, mh);
-        const c = drawToCanvas(img, fit.width, fit.height, type === "image/jpeg" ? "#fff" : null);
+        const fill = type === "image/jpeg" ? "#fff" : null;
+        const lossy = type !== "image/png";
+        let blob: Blob, cw: number, ch: number;
+        if (!limit) {
+          const c = drawToCanvas(img, fit.width, fit.height, fill);
+          blob = await canvasToBlob(c, type, lossy ? quality / 100 : undefined);
+          cw = c.width; ch = c.height; c.width = c.height = 0;
+        } else {
+          // 한도 안에 드는 것 중 가장 높은 화질·큰 크기(lib.ts fitToSize). 크기가 같은 시도는 그림을 한 번만 그려요
+          const canvases = new Map<number, HTMLCanvasElement>();
+          const draw = (scale: number) => {
+            let c = canvases.get(scale);
+            if (!c) { c = drawToCanvas(img, Math.max(1, Math.round(fit.width * scale)), Math.max(1, Math.round(fit.height * scale)), fill); canvases.set(scale, c); }
+            return c;
+          };
+          const r = await fitToSize(imgFitSteps(quality, lossy), limit, async (st) => {
+            const c = draw(st.scale);
+            const b = await canvasToBlob(c, type, lossy ? st.quality / 100 : undefined);
+            return { size: b.size, out: { blob: b, w: c.width, h: c.height } };
+          });
+          for (const c of canvases.values()) c.width = c.height = 0;
+          ({ blob, w: cw, h: ch } = r.out);
+          if (!r.fits) missed++;
+        }
         img.close();
-        const blob = await canvasToBlob(c, type, type === "image/png" ? undefined : quality / 100);
         const sameFmt = type === it.file.type;
-        results.push({ it, blob, type, w: c.width, h: c.height, name: outName(it.file.name, sameFmt ? "압축" : "", extFor(type)) });
-        c.width = c.height = 0;
+        results.push({ it, blob, type, w: cw, h: ch, name: outName(it.file.name, sameFmt ? "압축" : "", extFor(type)) });
       }
       prog.set(1, "완료!");
       const names = uniqueNames(results.map((r) => r.name));
@@ -266,6 +298,9 @@ export function mountCompress(root: HTMLElement): Mounted {
           p < 0 && r.type === r.it.file.type && r.w === r.it.w ? h("span", { class: "muted" }, " 원본이 더 작아요 — 원본을 그대로 쓰세요") : null);
         box.append(resultItem({ name: r.name, blob: r.blob, extra, thumb: h("img", { class: "fthumb", src: r.it.thumb, alt: "" }) }));
       }
+      if (limit) box.append(h("p", { class: `hint${missed ? " bad" : ""}` }, missed
+        ? `${missed}장은 가장 작게 해도 ${kbPref(maxKb.value)}KB를 넘어요.${results.some((r) => r.type === "image/png") ? " PNG라면 JPG로 저장해 보세요." : ""}`
+        : `모두 장마다 ${kbPref(maxKb.value)}KB 이하로 맞췄어요.`));
       if (results.some((r) => r.it.file.type === "image/gif")) box.append(h("p", { class: "hint" }, "움직이는 GIF는 첫 장면만 남아요."));
       out.replaceChildren(box);
     } catch (e) { err.show(errMsg(e)); }

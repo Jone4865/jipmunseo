@@ -8,8 +8,8 @@
   --radius: 10px;
 }
 /* fonts:start — dev/fonts.mjs 가 써요(손으로 고치지 않아요). JL Sans = Pretendard 1.3.9(OFL 1.1)를 줄인 판(예약 이름 때문에 이름을 바꿨어요) */
-@font-face{font-family:"JL Sans";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans.b1ff47e671.woff2) format("woff2")}
-@font-face{font-family:"JL Sans Ko";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans-ko.a55bbf7759.woff2) format("woff2");unicode-range:U+A1-17F,U+3131-318E,U+AC00-D7A3}
+@font-face{font-family:"JL Sans";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans.f32a7dbe4e.woff2) format("woff2")}
+@font-face{font-family:"JL Sans Ko";font-style:normal;font-weight:45 920;font-display:swap;src:url(/fonts/jl-sans-ko.bfef121c66.woff2) format("woff2");unicode-range:U+A1-17F,U+3131-318E,U+AC00-D7A3}
 /* fonts:end */
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -266,6 +266,16 @@ input[type="range"] { width: 100%; accent-color: var(--acc); min-height: 32px; }
 .result { position: relative; margin-top: 18px; background: var(--sheet); color: var(--ink); border-radius: var(--radius); padding: 20px 20px 16px; box-shadow: 0 1px 2px rgba(31,29,26,.08), 0 12px 24px -10px rgba(0,0,0,.4); border-left: 4px solid var(--ok); }
 .result h2 { font-size: 20px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .result h2 svg { width: 22px; height: 22px; color: var(--ok); flex: none; }
+/* 결과 아래 '이 파일로 이어서'(벤치마킹 2026-10-22) — 첫 화면 '최근에 쓴 도구' 칩과 같은 모양 */
+.next-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding-top: 12px; border-top: 1px dashed var(--line2); }
+.next-lbl { font-size: 13px; font-weight: 700; color: var(--muted); margin-right: 2px; flex: 0 0 100%; }
+.next-btn { font: inherit; font-size: 14px; font-weight: 650; padding: 8px 14px; border: 1.5px solid var(--line2); border-radius: 999px; background: var(--sheet); color: var(--ink); min-height: 44px; display: inline-flex; align-items: center; cursor: pointer; }
+@media (hover: hover) { .next-btn:hover { border-color: var(--acc); background: var(--acc-soft); } }
+/* PDF 용량 맞추기의 목표 칸 */
+.fit-row { margin-top: 8px; }
+.fit-row[hidden] { display: none; }
+.fit-own { display: inline-flex; align-items: center; gap: 6px; }
+.fit-own .input.num { width: 76px; }
 .ritem { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); min-width: 0; }
 .ritem:first-of-type { border-top: 0; }
 .pill { display: inline-block; font-size: 13px; font-weight: 800; padding: 0 8px; border-radius: 99px; font-variant-numeric: tabular-nums; text-align: center; }

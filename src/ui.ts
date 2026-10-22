@@ -297,6 +297,8 @@ export function download(blob: Blob, name: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
+/** 결과 줄이 담은 파일 — 결과 아래 '이어서' 줄(app.ts)이 다음 도구로 넘길 때 꺼내요 */
+export const resultFiles = new WeakMap<HTMLElement, { name: string; blob: Blob }>();
 /** 결과 한 줄: 이름, 크기, (부가정보), 내려받기 버튼 */
 export function resultItem({ name, blob, extra, thumb }: { name: string; blob: Blob; extra?: Kid; thumb?: Node | null }): HTMLDivElement {
   const btn = h("button", { type: "button", class: "btn sm primary", onclick: once(() => download(blob, name)) }, icon("dl"), "내려받기");
@@ -305,6 +307,7 @@ export function resultItem({ name, blob, extra, thumb }: { name: string; blob: B
     thumb || null,
     h("div", { class: "fmeta" }, h("div", { class: "fname", title: name }, name), h("div", { class: "fsub" }, formatSize(blob.size), extra ? h("span", {}, " · ", extra) : null)),
     btn);
+  resultFiles.set(row, { name, blob });
   describeRow(row, ".fname");
   return row;
 }
