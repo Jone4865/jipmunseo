@@ -2,7 +2,7 @@
 import { type SegOption, h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, canEncode, thumbURL, makeZip, download, toast, once, focusIfLost } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref, intPref, sizePref } from "./prefs.js";
-import { formatSize, outName, moveItem, sortByName, isSortedByName, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord, fitToSize, imgFitSteps, kbPref } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, savedPercent, fitWithin, extFor, kindOf, mmToPt, uniqueNames, formatCoord, fitToSize, imgFitSteps, kbPref, kbInput, overButLooksUnder } from "./lib.js";
 import { vendorImport, type ExifrModule, type Exifr, type ExifData } from "./vendor.js";
 import type { Mounted } from "./app.js";
 import type { PageSize } from "./lib.js";
@@ -171,7 +171,8 @@ export function mountCompress(root: HTMLElement): Mounted {
   maxW.addEventListener("change", saveMax); maxH.addEventListener("change", saveMax);
   // 장마다 용량 한도(벤치마킹 2026-10-22): 원서·지원서 사진 칸의 '200KB 이하'에 맞춰요. 비우면 한도 없음
   const maxKb = h("input", { class: "input num", type: "text", inputmode: "numeric", placeholder: "없음", "aria-label": "장마다 용량 한도(KB)", autocomplete: "off", value: kbPref(readPref(PREF.imgMaxKb)) }) as HTMLInputElement;
-  const saveKb = () => { maxKb.value = kbPref(maxKb.value); writePref(PREF.imgMaxKb, maxKb.value); out.replaceChildren(); };
+  // '200KB'·'1,000'처럼 적어도 읽고, 10~50000 밖이면 끝 값으로 칸에 다시 적어요(예전에는 말없이 비우고 한도 없이 저장했어요, 버그 찾기 9차)
+  const saveKb = () => { maxKb.value = kbInput(maxKb.value); writePref(PREF.imgMaxKb, maxKb.value); out.replaceChildren(); };
   maxKb.addEventListener("change", saveKb);
   maxKb.addEventListener("input", () => out.replaceChildren());
   maxW.addEventListener("input", () => out.replaceChildren()); maxH.addEventListener("input", () => out.replaceChildren());
@@ -244,8 +245,10 @@ export function mountCompress(root: HTMLElement): Mounted {
     const its = list.items.filter(isDecoded);
     const results: { it: ImgItem; blob: Blob; type: string; w: number; h: number; name: string }[] = [];
     const mw = Number(sizePref(maxW.value)) || 0, mh = Number(sizePref(maxH.value)) || 0;
-    const limit = Number(kbPref(maxKb.value)) * 1000 || 0;
-    let missed = 0;
+    maxKb.value = kbInput(maxKb.value); // 칸을 떠나지 않고 바로 눌렀을 때도 칸 = 쓰는 값
+    const limitKb = maxKb.value;
+    const limit = Number(limitKb) * 1000 || 0;
+    let missed = 0, looksUnder = "";
     try {
       for (let i = 0; i < its.length; i++) {
         const it = its[i];
@@ -275,7 +278,7 @@ export function mountCompress(root: HTMLElement): Mounted {
           });
           for (const c of canvases.values()) c.width = c.height = 0;
           ({ blob, w: cw, h: ch } = r.out);
-          if (!r.fits) missed++;
+          if (!r.fits) { missed++; looksUnder ||= overButLooksUnder(r.size, limit, 1); }
         }
         img.close();
         const sameFmt = type === it.file.type;
@@ -299,8 +302,8 @@ export function mountCompress(root: HTMLElement): Mounted {
         box.append(resultItem({ name: r.name, blob: r.blob, extra, thumb: h("img", { class: "fthumb", src: r.it.thumb, alt: "" }) }));
       }
       if (limit) box.append(h("p", { class: `hint${missed ? " bad" : ""}` }, missed
-        ? `${missed}장은 가장 작게 해도 ${kbPref(maxKb.value)}KB를 넘어요.${results.some((r) => r.type === "image/png") ? " PNG라면 JPG로 저장해 보세요." : ""}`
-        : `모두 장마다 ${kbPref(maxKb.value)}KB 이하로 맞췄어요.`));
+        ? `${missed}장은 가장 작게 해도 ${limitKb}KB를 넘어요.${looksUnder}${results.some((r) => r.type === "image/png") ? " PNG라면 JPG로 저장해 보세요." : ""}`
+        : `모두 장마다 ${limitKb}KB 이하로 맞췄어요.`));
       if (results.some((r) => r.it.file.type === "image/gif")) box.append(h("p", { class: "hint" }, "움직이는 GIF는 첫 장면만 남아요."));
       out.replaceChildren(box);
     } catch (e) { err.show(errMsg(e)); }

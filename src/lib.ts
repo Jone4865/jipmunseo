@@ -264,6 +264,25 @@ export function parseTargetMb(raw: string | null | undefined): number | null {
   const n = Math.round(Number(s) * 10) / 10;
   return n >= 0.1 && n <= 500 ? n : null;
 }
+/**
+ * 사람이 목표 칸에 적은 글자(버그 찾기 9차): '2MB'·'1.25'·'600'처럼 적어도 칸에 남는 값 = 쓰는 값이 되게 읽어요.
+ * 단위(MB)는 떼고, 0.1~500 밖이면 가까운 끝으로, 소수 한 자리로. 숫자가 아니거나 0 이하면 null(칸은 지난 값으로 돌아가요)
+ */
+export function targetMbInput(raw: string | null | undefined): number | null {
+  const s = String(raw ?? "").replace(/\s+/g, "").replace(/(mb|m)$/i, "").replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(s)) return null;
+  const n = Number(s);
+  if (!(n > 0)) return null;
+  return Math.min(500, Math.max(0.1, Math.round(n * 10) / 10));
+}
+/**
+ * 목표 용량은 1000 단위로 세는데 화면의 크기 표시(formatSize)는 1024 단위라, 목표를 조금 넘은 결과가 목표보다 작아 보여요
+ * ('1MB 이하로 못 줄였어요' 옆에 '996 KB'). 그럴 때만 붙일 말 — unitPow 는 KB 1, MB 2
+ */
+export function overButLooksUnder(bytes: number, limit: number, unitPow: 1 | 2): string {
+  if (bytes <= limit || bytes > limit * 1.024 ** unitPow) return "";
+  return unitPow === 2 ? " 1MB를 1,000,000바이트로 세면 넘어요." : " 1KB를 1,000바이트로 세면 넘어요.";
+}
 export interface FitResult<S, T> { step: S; group: number; out: T; size: number; fits: boolean; tries: number }
 /**
  * groups 를 차례로(앞 묶음일수록 원본을 덜 바꿔요 — 사진만 줄이기, 그다음 쪽을 그림으로) 써 봐요.
@@ -313,6 +332,17 @@ export function kbPref(raw: string | null | undefined): string {
   if (!/^\d+$/.test(s)) return "";
   const n = Number(s);
   return n >= 10 && n <= 50000 ? String(n) : "";
+}
+/**
+ * 사람이 용량 한도 칸에 적은 글자(버그 찾기 9차): 예전에는 '200KB'·'1,000'·'5'를 적으면 말없이 칸을 비우고 한도 없이 저장했어요.
+ * 단위(KB)·천 단위 쉼표는 떼고, 10~50000 밖이면 가까운 끝으로, 소수는 반올림. 숫자가 아니거나 0이면 ""(한도 없음)
+ */
+export function kbInput(raw: string | null | undefined): string {
+  let s = String(raw ?? "").replace(/\s+/g, "").replace(/(kb|k)$/i, "");
+  s = /^\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  if (!/^\d+(\.\d+)?$/.test(s)) return "";
+  const n = Math.round(Number(s));
+  return n > 0 ? String(Math.min(50000, Math.max(10, n))) : "";
 }
 
 /**

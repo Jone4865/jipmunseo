@@ -2,7 +2,7 @@
 import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
-import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, FIT_STEPS, FIT_TARGETS_MB, fitToSize, mbToBytes, parseTargetMb, type CompressMode, type CompressLevel, type CompressPreset } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, FIT_STEPS, FIT_TARGETS_MB, fitToSize, mbToBytes, parseTargetMb, targetMbInput, overButLooksUnder, type CompressMode, type CompressLevel, type CompressPreset } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
 import type { ThumbRenderer } from "./ui.js";
 import type { PdfjsDocument } from "./vendor.js";
@@ -415,8 +415,10 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
   const targetSeg = seg<number>(FIT_TARGETS_MB.map((n) => ({ value: n, label: `${n}MB` })), -1, (v) => setTarget(v));
   targetSeg.setAttribute("aria-label", "목표 용량");
   const targetIn = h("input", { class: "input num", type: "text", inputmode: "decimal", "aria-label": "목표 용량 직접 적기(MB)", placeholder: "직접", autocomplete: "off" }) as HTMLInputElement;
-  targetIn.addEventListener("input", () => { const n = parseTargetMb(targetIn.value); if (n !== null) setTarget(n, false); });
-  targetIn.addEventListener("change", () => { if (parseTargetMb(targetIn.value) === null) targetIn.value = String(target); });
+  // 칸에 남는 값 = 쓰는 값(버그 찾기 9차): 예전에는 '7.25'를 적으면 7.3MB로 맞추면서 칸에는 7.25가 남고, '0'·'abc'를 적으면
+  // 칸이 '5'가 되면서 5MB 단추도 눌려 있었어요. 적는 동안에는 읽을 수 있는 값만 쓰고, 칸을 떠나면 쓰는 값으로 고쳐 적어요
+  targetIn.addEventListener("input", () => { const n = targetMbInput(targetIn.value); if (n !== null) setTarget(n, false); });
+  targetIn.addEventListener("change", () => setTarget(targetMbInput(targetIn.value) ?? target));
   const fitBox = h("div", { class: "row fit-row" }, targetSeg, h("span", { class: "fit-own" }, targetIn, h("span", { class: "muted" }, "MB 이하")));
   const go = h("button", { type: "button", class: "btn primary big", onclick: run }, "용량 줄이기");
   const work = h("div", { hidden: true },
@@ -517,9 +519,11 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
         ({ bytes, stats } = r.out); usedMode = modes[r.group];
         const goal = `${fmtMb(target)} 이하`;
         fitPill = h("span", { class: `pill ${r.fits ? "good" : "bad"}` }, r.fits ? `${goal} 맞춤` : `${goal}로 못 줄였어요`);
-        if (usedMode !== mode) notes.push(`사진만 줄여서는 ${formatSize(smallest[0])}까지라 쪽을 통째로 이미지로 바꿨어요. 글자를 고르거나 검색할 수 없어요.`);
-        if (r.fits) notes.push(`${goal}에 드는 것 중 가장 선명하게 저장했어요(${presetText(usedMode, r.step)}).`);
-        else notes.push(`가장 작게 해도 ${formatSize(r.size)}예요. 'PDF 나누기'로 나눠서 보내 보세요.`);
+        if (usedMode !== mode) notes.push(`사진만 줄여서는 ${formatSize(smallest[0])}까지라 쪽을 통째로 이미지로 바꿨어요.${overButLooksUnder(smallest[0], limit, 2)} 글자를 고르거나 검색할 수 없어요.`);
+        // 사진이 없는 PDF 는 '사진 긴 변 2400px · 화질 82%'로 저장했다고 적으면 엉뚱해요(아래에 '사진이 없어요'가 붙어요)
+        const noPhotos = usedMode === "images" && !!r.out.stats && !r.out.stats.recompressed;
+        if (r.fits) notes.push(noPhotos ? `${goal}에 들어요.` : `${goal}에 드는 것 중 가장 선명하게 저장했어요(${presetText(usedMode, r.step)}).`);
+        else notes.push(`가장 작게 해도 ${formatSize(r.size)}예요.${overButLooksUnder(r.size, limit, 2)} 'PDF 나누기'로 나눠서 보내 보세요.`);
       } else {
         ({ bytes, stats } = await shrink(mode, COMPRESS_PRESETS[mode][level]));
       }
