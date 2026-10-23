@@ -8,7 +8,7 @@
 //  - 화질(150·200·300dpi)과 굵은 글꼴 켜기는 이 브라우저에 기억해요(localStorage, 설정 두 개뿐 — 문서·파일 정보는 남기지 않아요).
 //  - 편집 가능하게 바꾸기(convertToEditable)·HWP 로 다시 저장은 부르지 않아요(타입에도 없어요).
 // 설계: _workspace/review/HWP_SPEC.md (4·5·6·7·12장)
-import { h, icon, dropzone, progress, alertBox, resultItem, seg, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, once, focusIfLost, setDisabledKeepingFocus, touchFirst, type Seg } from "./ui.js";
+import { h, icon, dropzone, progress, alertBox, resultItem, seg, stickyActions, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, once, focusIfLost, setDisabledKeepingFocus, touchFirst, type Seg } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref } from "./prefs.js";
 import { formatSize, parseRanges, rangesToSet } from "./lib.js";
@@ -249,7 +249,8 @@ export function mountHwp(root: HTMLElement): Mounted {
     // 두 번 톡톡 누르면 열렸다 바로 닫혔어요. 화면 맨 아래에서 누르면 열린 칸이 화면 밖이라 아무 일이 없는 것처럼 보였어요 → 보이게 올려요
     holdTaps();
     if (!exportBox.hidden && exportBox.getBoundingClientRect().top > window.innerHeight * 0.7) {
-      exportArea.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      // 단추 줄은 붙어 있어서(sticky) 그 줄로 굴리면 브라우저가 이미 보인다고 여겨요 → 열린 칸 바로 위에 단추가 오게 굴려요
+      window.scrollBy({ top: exportBox.getBoundingClientRect().top - exportRow.offsetHeight - 16, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
     }
   } }, icon("dl"), "내보내기");
   const fmtGroup = h("div", { class: "hwp-formats", role: "radiogroup", "aria-label": "저장할 파일 형식" });
@@ -280,7 +281,11 @@ export function mountHwp(root: HTMLElement): Mounted {
     h("div", { class: "actions" }, makeBtn));
   const exportBox = h("div", { class: "hwp-export", hidden: true },
     h("h2", { class: "sub-h" }, "어떤 파일로 저장할까요?"), fmtGroup, optsBox);
-  const exportArea = h("div", { class: "hwp-export-area" }, h("div", { class: "actions" }, exportBtn), exportBox);
+  // '내보내기'는 다른 도구의 만들기 단추처럼 화면 아래에 붙어요(QA 10바퀴). 예전에는 쪽 그림 밑에 있어서 1280×900 에서도
+  // 문서를 열면 단추가 화면 밖(400px 아래)이라, HWP 를 PDF 로 바꾸러 온 사람이 할 일을 찾아 내려가야 했어요.
+  // 붙으려면 줄이 보기 칸(.hwp-viewer)의 바로 아래 자식이어야 해서 감싸는 칸은 display: contents 예요
+  const exportRow = stickyActions(exportBtn);
+  const exportArea = h("div", { class: "hwp-export-area" }, exportRow, exportBox);
   const out = h("div");
 
   const bar = h("div", { class: "hwp-bar" }, pager, zoomSeg);

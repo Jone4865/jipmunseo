@@ -356,7 +356,7 @@ export function sortable(container: HTMLElement, itemSelector: string, onMove: (
 export { moveItem };
 
 /* ───── 세그먼트 버튼 ───── */
-export interface SegOption<T> { value: T; label: string; disabled?: boolean; title?: string }
+export interface SegOption<T> { value: T; label: string; disabled?: boolean; title?: string; hidden?: boolean }
 export type Seg<T> = HTMLDivElement & { setValue(v: T): void };
 export function seg<T>(options: SegOption<T>[], value: T, onChange: (v: T) => void): Seg<T> {
   const el = h("div", { class: "seg", role: "group" }) as Seg<T>;
@@ -369,6 +369,7 @@ export function seg<T>(options: SegOption<T>[], value: T, onChange: (v: T) => vo
     const o = options[i];
     b.setAttribute("aria-pressed", String(o.value === value));
     b.disabled = !!o.disabled;
+    b.hidden = !!o.hidden;
     if (o.title) b.title = o.title; else b.removeAttribute("title");
   });
   el.replaceChildren(...btns);

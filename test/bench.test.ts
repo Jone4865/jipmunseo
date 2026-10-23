@@ -67,10 +67,11 @@ test("맞추기 단계는 앞에서 뒤로 갈수록 작아져요(긴 변·dpi·
   assert.deepEqual([...FIT_TARGETS_MB], [1, 2, 5, 10]);
 });
 
-test("이어서 쓸 도구: PDF 는 줄이기·합치기·가리기·나누기·회전, 사진은 PDF로·압축·가리기·정보 지우기 — 지금 도구는 빼요", () => {
-  assert.deepEqual(nextToolsFor({ name: "a-합침.pdf" }, "pdf-merge"), ["pdf-compress", "id-mask", "pdf-split", "pdf-organize"]);
-  assert.deepEqual(nextToolsFor({ name: "계약서.pdf", type: "application/pdf" }, "hwp-view"), ["pdf-compress", "pdf-merge", "id-mask", "pdf-split", "pdf-organize"]);
-  assert.deepEqual(nextToolsFor({ name: "얼굴.png", type: "image/png" }, "bg-remove"), ["img-to-pdf", "img-compress", "id-mask", "exif-clean"]);
+test("이어서 쓸 도구: PDF 는 줄이기·합치기·가리기, 사진은 압축·PDF로·가리기 — 지금 도구는 빼요(QA 10바퀴: 나누기·회전·정보 지우기 뺌)", () => {
+  assert.deepEqual(nextToolsFor({ name: "a-합침.pdf" }, "pdf-merge"), ["pdf-compress", "id-mask"]);
+  assert.deepEqual(nextToolsFor({ name: "계약서.pdf", type: "application/pdf" }, "hwp-view"), ["pdf-compress", "pdf-merge", "id-mask"]);
+  assert.deepEqual(nextToolsFor({ name: "얼굴.png", type: "image/png" }, "bg-remove"), ["img-compress", "img-to-pdf", "id-mask"]);
+  assert.deepEqual(nextToolsFor({ name: "사진.jpg", type: "image/jpeg" }, "img-compress"), ["img-to-pdf", "id-mask"]);
   assert.deepEqual(nextToolsFor({ name: "쪽.zip" }, "hwp-view"), []);
   assert.deepEqual(nextToolsFor({ name: "문서.docx" }, "hwp-view"), []);
 });

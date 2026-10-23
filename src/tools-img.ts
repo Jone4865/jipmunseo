@@ -204,14 +204,17 @@ export function mountCompress(root: HTMLElement): Mounted {
   // 사진을 더하거나 빼거나 형식·화질·크기를 바꾸면 지난 결과는 지금 설정과 달라요(옛 결과·내려받기를 걷어요)
   list.onEdit = () => out.replaceChildren();
 
-  // 브라우저가 저장할 수 없는 형식은 끄기
+  // 브라우저가 저장할 수 없는 형식은 단추를 숨겨요(QA 10바퀴). 예전에는 줄 그은 단추 + 두 줄 안내였는데,
+  // AVIF 는 Chrome·Safari·Firefox 모두 저장하지 못해서 거의 모든 사람에게 못 누르는 단추와 경고만 보였어요
+  const fmtHintText = "원래 형식: JPG는 JPG로, PNG는 PNG로 저장해요. HEIC는 JPG로.";
+  fmtHint.textContent = fmtHintText;
   (async () => {
     const no: string[] = [];
-    for (const o of fmtOpts) if (o.value.startsWith("image/") && !(await canEncode(o.value))) { o.disabled = true; o.title = "이 브라우저는 이 형식으로 저장할 수 없어요"; no.push(o.label); }
+    for (const o of fmtOpts) if (o.value.startsWith("image/") && !(await canEncode(o.value))) { o.disabled = true; o.hidden = true; no.push(o.label); }
     // 지난번에 고른 형식을 이 브라우저가 저장할 수 없으면 원래 형식으로
     if (fmtOpts.some((o) => o.value === fmt && o.disabled)) { fmt = "keep"; syncQ(); }
     fmtSeg.setValue(fmt);
-    fmtHint.textContent = no.length ? `이 브라우저는 ${no.join(", ")} 저장을 지원하지 않아요. (원래 형식이 그렇다면 JPG로 저장해요)` : "원래 형식: JPG는 JPG로, PNG는 PNG로 저장해요. HEIC는 JPG로.";
+    fmtHint.textContent = no.length ? `${fmtHintText} 이 브라우저가 저장하지 못하는 ${no.join("·")}도 JPG로.` : fmtHintText;
   })();
   function syncQ() { qOpt.style.opacity = fmt === "image/png" ? ".45" : ""; q.disabled = fmt === "image/png"; }
 

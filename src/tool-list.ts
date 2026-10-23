@@ -15,7 +15,7 @@ export const TOOL_INFO: readonly ToolInfo[] = [
   { id: "pdf-compress", title: "PDF 용량 줄이기", desc: "안의 사진을 다시 저장해서 2MB·5MB 같은 제출 용량에 맞춰요." },
   { id: "id-mask", title: "신분증 가리기 · 워터마크", desc: "주민번호 뒷자리를 가리고 ‘OO 제출용’을 넣은 사본을 만들어요." },
   { id: "img-to-pdf", title: "이미지 → PDF", desc: "사진 여러 장을 A4 또는 원본 크기 PDF 하나로 묶어요." },
-  { id: "img-compress", title: "이미지 압축 · 변환", desc: "JPG · PNG · WebP · AVIF로 바꾸고 화질 · 크기를 줄여요. 200KB 이하처럼 장마다 용량도 맞춰요." },
+  { id: "img-compress", title: "이미지 압축 · 변환", desc: "JPG · PNG · WebP로 바꾸고 화질 · 크기를 줄여요. 200KB 이하처럼 장마다 용량도 맞춰요." },
   { id: "bg-remove", title: "사진 배경 지우기", desc: "AI가 사진 배경을 지워 투명 PNG로 만들어요." },
   { id: "exif-clean", title: "사진 정보 지우기", desc: "사진에 숨은 위치(GPS) · 카메라 · 날짜 정보를 확인하고 지워요." },
 ];

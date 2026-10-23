@@ -321,7 +321,7 @@ input[type="range"] { width: 100%; accent-color: var(--acc); min-height: 32px; }
 @keyframes hwp-in { from { opacity: .35; } to { opacity: 1; } }
 .hwp-ph { display: grid; place-items: center; width: 100%; aspect-ratio: 210 / 297; background: #fff; color: var(--muted); font-size: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.18); }
 .hwp-print-note { display: none; }
-.hwp-export-area { margin-top: 6px; }
+.hwp-export-area { display: contents; }
 .hwp-export { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
 .hwp-formats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 8px 0 14px; }
 .hwp-fmt { display: flex; flex-direction: column; align-items: stretch; gap: 4px; text-align: left; min-height: 44px; padding: 12px 14px; border: 1.5px solid var(--line2); border-radius: 10px; background: #fff; cursor: pointer; color: var(--ink); }

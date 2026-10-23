@@ -348,11 +348,13 @@ export function kbInput(raw: string | null | undefined): string {
 /**
  * 결과 파일로 이어서 쓸 도구(벤치마킹 2026-10-22, iLovePDF·Smallpdf 결과 화면의 '이어서 하기').
  * 합친 PDF를 줄이고, HWP 를 PDF 로 바꿔 다른 서류와 합치는 일이 많아요. 지금 도구는 빼요.
+ * QA 10바퀴: 제출 서류 흐름(줄이기·합치기·'OO 제출용' 표시)에 드는 것만 둬요. 나누기·회전은 결과를 만든 도구에서
+ * 이미 순서·쪽을 골랐고, 정보 지우기는 이 사이트가 만든 사진에 위치·기기 정보가 처음부터 없어서(캔버스로 다시 저장) 뺐어요.
  */
 export function nextToolsFor(file: { name?: string; type?: string }, current: string): string[] {
   const k = kindOf(file);
-  const ids = k === "pdf" ? ["pdf-compress", "pdf-merge", "id-mask", "pdf-split", "pdf-organize"]
-    : k === "image" ? ["img-to-pdf", "img-compress", "id-mask", "exif-clean"] : [];
+  const ids = k === "pdf" ? ["pdf-compress", "pdf-merge", "id-mask"]
+    : k === "image" ? ["img-compress", "img-to-pdf", "id-mask"] : [];
   return ids.filter((id) => id !== current);
 }
 /** 결과 줄 여러 개 중 이어서 넘길 하나: PDF 가 하나면 그것(가리기의 JPG+PDF), 아니면 줄이 하나일 때만 */
