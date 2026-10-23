@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 검색용 안내 페이지(/pdf-compress). 도구 코드는 싣지 않아요 — 고른 파일은 /#pdf-compress 도구로 넘겨요(src/guide-page.ts, QA 9바퀴) -->
+<title>PDF 용량 줄이기 · 2MB·5MB 맞추기 | 집문서</title>
+<meta name="description" content="PDF 안의 사진을 다시 저장해서 용량을 줄여요. 1·2·5·10MB나 직접 적은 용량을 고르면 그 안에 드는 것 중 가장 선명한 결과를 골라요. 스캔한 서류는 쪽을 그림으로 다시 그려 더 줄여요.">
+<link rel="canonical" href="https://jipmunseo.pages.dev/pdf-compress">
+<meta name="theme-color" content="#f6f1e7">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jipmunseo.pages.dev/pdf-compress">
+<meta property="og:title" content="PDF 용량 줄이기 · 2MB·5MB 맞추기 | 집문서">
+<meta property="og:description" content="PDF 안의 사진을 다시 저장해서 2MB·5MB 같은 제출 용량에 맞춰요.">
+<meta property="og:image" content="https://jipmunseo.pages.dev/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/assets/favicon.png" type="image/png">
+<link rel="icon" href="/assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .hw-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 40px; align-items: center; padding: 30px 0 44px; }
+  .hw-hero h1 { font-size: clamp(36px, 5.6vw, 60px); }
+  .hw-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+  .hw-going, .hw-going * { cursor: progress; }
+  .hw-desk { aspect-ratio: 5 / 4; overflow: hidden; }
+  .hw-arrow { position: absolute; left: 46%; top: 44%; width: 6%; color: #fff; }
+  .hw-sec { padding: 8px 0 44px; }
+  .hw-sec h2 { font-size: 28px; letter-spacing: -.02em; margin: 0 0 6px; line-height: 1.3; }
+  .hw-sec > p { color: var(--muted); margin: 0 0 18px; max-width: 720px; }
+  .hw-fmts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+  .hw-fmt { padding: 18px 18px 16px; }
+  .hw-fmt h3 { margin: 0 0 4px; font-size: 18px; letter-spacing: -.02em; }
+  .hw-fmt .k { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 99px; border: 1.5px solid var(--line2); color: var(--muted); margin-bottom: 8px; }
+  .hw-fmt .k.shape { border-color: var(--acc); color: var(--acc-ink); }
+  .hw-fmt p { margin: 0; font-size: 14px; color: var(--muted); line-height: 1.6; }
+  .hw-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .hw-two .note h2 { font-size: 22px; }
+  .hw-two ul { margin: 0; padding-left: 20px; color: var(--muted); line-height: 1.8; }
+  .hw-two li b { color: var(--ink); }
+  .hw-faq details { background: var(--sheet); border-radius: var(--radius); box-shadow: var(--shadow); margin-bottom: 10px; }
+  .hw-faq summary { cursor: pointer; padding: 14px 18px; font-weight: 750; min-height: 44px; list-style-position: inside; }
+  .hw-faq details p { margin: 0; padding: 0 18px 16px; color: var(--muted); line-height: 1.75; }
+  /* 매트 위: 큰 PDF 한 장이 작은 PDF 로 */
+  .pc-src, .pc-out { position: absolute; display: flex; flex-direction: column; gap: 7px; padding: 14px; }
+  .pc-src { left: 7%; top: 12%; width: 37%; height: 72%; }
+  .pc-out { right: 9%; top: 26%; width: 30%; height: 50%; }
+  .pc-src b, .pc-out b { font-size: 13.5px; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pc-ph { flex: 1 1 auto; border-radius: 4px; background: linear-gradient(135deg, #c9d6e8, #e8dcc6); min-height: 0; }
+  .pc-out .pc-ph { background: linear-gradient(135deg, #d6dfec, #efe6d6); }
+  .pc-src i, .pc-out i { display: block; height: 6px; border-radius: 3px; background: #e9e5de; flex: none; }
+  .pc-src i.s, .pc-out i.s { width: 60%; }
+  .pc-size { align-self: flex-start; font-size: 12.5px; font-weight: 800; border-radius: 6px; padding: 3px 8px; background: #eeeae3; color: var(--muted); flex: none; }
+  .pc-out .pc-size { color: var(--acc-ink); background: var(--acc-soft); }
+  .pc-fit { position: absolute; right: 9%; top: 80%; font-size: 13px; font-weight: 800; color: #fff; }
+  @media (max-width: 900px) {
+    .hw-fmts { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    .hw-two { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 820px) {
+    .hw-hero { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 16px 0 32px; }
+    .hw-desk { max-width: 480px; }
+  }
+  @media (max-width: 600px) {
+    .hw-fmts { grid-template-columns: minmax(0, 1fr); }
+    .hw-desk { aspect-ratio: 4 / 3.3; }
+    .hw-cta .btn { flex: 1 1 auto; }
+    .hw-sec h2 { font-size: 24px; }
+    .pc-src, .pc-out { padding: 10px; gap: 5px; }
+    .pc-src b, .pc-out b { font-size: 12px; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="/"><img src="/assets/icon.svg" alt="" width="38" height="38"><span>집문서<small>서류 파일 도구</small></span></a>
+    <div class="links"><a href="/#tools">모든 도구</a><a href="/privacy">개인정보 처리방침</a></div>
+  </nav>
+
+  <main>
+    <header class="hw-hero">
+      <div>
+        <h1>PDF 용량을<br><span class="marker">제출 용량에</span> 맞추기</h1>
+        <p class="lead">PDF 안의 사진을 다시 저장해서 용량을 줄여요. <b>1·2·5·10MB</b>나 직접 적은 용량을 고르면 그 안에 드는 것 중 가장 선명한 결과를 골라요.</p>
+        <div class="hw-cta">
+          <a class="btn primary big" href="/#pdf-compress" data-pick="pdf-compress">PDF 고르기</a>
+          <a class="btn big" href="/">다른 도구 보기</a>
+        </div>
+      </div>
+      <div class="mat hw-desk" aria-hidden="true">
+        <div class="sheet pc-src"><b>지원서.pdf</b><span class="pc-ph"></span><i></i><i class="s"></i><i></i><span class="pc-size">8.4 MB</span></div>
+        <svg class="hw-arrow" viewBox="0 0 40 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h32M26 4l9 8-9 8"/></svg>
+        <div class="sheet pc-out"><b>지원서-줄임.pdf</b><span class="pc-ph"></span><i></i><i class="s"></i><span class="pc-size">1.9 MB</span></div>
+        <span class="pc-fit">2MB 이하</span>
+      </div>
+    </header>
+
+    <section class="hw-sec" aria-labelledby="how-h">
+      <h2 id="how-h">줄이는 방법</h2>
+      <p>보통은 사진만 줄이기로 충분해요. 스캔해서 만든 PDF처럼 쪽 전체가 사진이면 쪽을 통째로 그림으로 바꾸는 쪽이 더 작아져요.</p>
+      <div class="hw-fmts">
+        <div class="sheet hw-fmt"><h3>사진만 줄이기</h3><span class="k shape">글자 그대로</span><p>글자·링크·책갈피는 그대로 두고 안에 든 사진만 다시 저장해요. 정도는 조금·보통·많이(사진 긴 변 2400·1800·1200px) 중에서 골라요. 글자만 있는 PDF는 많이 줄지 않아요.</p></div>
+        <div class="sheet hw-fmt"><h3>쪽을 통째로 이미지로</h3><span class="k">가장 작게</span><p>쪽마다 그림으로 다시 그려요(150·120·96dpi). 가장 작아지지만 글자를 고르거나 검색할 수 없고 링크·책갈피·입력 칸이 빠져요.</p></div>
+        <div class="sheet hw-fmt"><h3>용량 맞추기</h3><span class="k shape">목표 용량</span><p>1·2·5·10MB 중에서 누르거나 MB를 직접 적어요. 여러 정도로 줄여 보고 목표 안에 드는 것 중 가장 덜 줄인 것을 골라요. 사진만 줄여서 안 되면 쪽을 그림으로 바꾸고 결과에 적어요.</p></div>
+      </div>
+    </section>
+
+    <section class="hw-sec hw-two">
+      <div class="note">
+        <h2>제출 사이트에서 막힐 때</h2>
+        <ul>
+          <li>사이트마다 1MB를 <b>1,000,000바이트</b>로도 <b>1,048,576바이트</b>로도 세요. 용량 맞추기는 더 작은 1,000,000바이트로 맞춰서 어느 쪽으로 세도 넘지 않아요.</li>
+          <li>여러 파일을 하나로 내야 하면 <a href="/pdf-merge">PDF 합치기</a>로 먼저 합치고, 결과 아래 '이 파일로 이어서'에서 용량 줄이기로 바로 넘기면 돼요.</li>
+          <li>사진을 PDF로 내야 하면 <a href="/#img-to-pdf">이미지 → PDF</a>로 묶은 뒤 줄여요.</li>
+        </ul>
+      </div>
+      <div class="note">
+        <h2>줄이지 못하는 PDF</h2>
+        <ul>
+          <li><b>암호가 걸린 PDF</b>는 열지 못해요. 암호를 푼 뒤 다시 넣어 주세요.</li>
+          <li>이미 작게 저장된 PDF는 더 줄일 게 거의 없을 수 있어요. 결과에 몇 % 줄었는지 적어 줘요.</li>
+          <li>한 파일은 300MB까지 넣을 수 있어요. 휴대폰에서는 쪽이 많은 PDF가 오래 걸릴 수 있어요.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="hw-sec hw-faq" aria-labelledby="faq-h">
+      <h2 id="faq-h">자주 묻는 것</h2>
+      <details><summary>글자가 흐려지나요?</summary><p>사진만 줄이기는 글자를 다시 그리지 않아서 글자는 그대로예요. 쪽을 통째로 이미지로 바꾸면 글자도 그림이 돼서, 많이 줄일수록 작은 글자가 흐려질 수 있어요.</p></details>
+      <details><summary>몇 MB까지 줄어드나요?</summary><p>PDF 안에 무엇이 들었느냐에 따라 달라요. 사진이 많은 PDF는 많이 줄고, 글자만 있는 PDF는 거의 줄지 않아요. 목표 용량이 있으면 '용량 맞추기'를 고르면 돼요.</p></details>
+      <details><summary>휴대폰에서도 되나요?</summary><p>네. 휴대폰 브라우저에서 PDF를 고르면 돼요. 저장되는 곳은 기기와 브라우저에 따라 달라요.</p></details>
+      <details><summary>돈이 드나요?</summary><p>아니요, 무료예요.</p></details>
+    </section>
+
+    <p class="hw-cta" style="margin:0 0 36px"><a class="btn primary big" href="/#pdf-compress" data-pick="pdf-compress">PDF 고르기</a></p>
+  </main>
+
+  <footer>
+    <p><a href="/privacy">개인정보 처리방침</a> · 문의 <a href="mailto:cowhddnjsdl0@gmail.com">cowhddnjsdl0@gmail.com</a> · <a class="donate" href="https://toon.at/donate/ggyaaaaak" target="_blank" rel="noopener"><svg class="ic-cup" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 3.2c-.9 1 .9 1.8 0 2.8M12.6 3.2c-.9 1 .9 1.8 0 2.8"/><path d="M4.5 9h11v4.5a4.5 4.5 0 0 1-4.5 4.5h-2a4.5 4.5 0 0 1-4.5-4.5z"/><path d="M15.5 10.5h1.3a2.3 2.3 0 0 1 0 4.6h-1.5"/><path d="M3.5 21h14"/></svg>응원하기</a></p>
+    <p>집문서는 <a href="https://github.com/Jone4865/jipmunseo" target="_blank" rel="noopener">소스 코드가 공개</a>된 AGPL-3.0 프로젝트예요.</p>
+    <p>© 2026 집문서 · <a href="https://jone-lab.pages.dev">Jone Lab의 다른 프로젝트 보기</a></p>
+  </footer>
+</div>
+</div>
+<script type="module" src="/js/guide-page.js"></script>
+</body>
+</html>

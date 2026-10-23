@@ -37,7 +37,7 @@ describe("첫 화면 도구 칸을 HTML 에 미리 넣기(느린 망)", () => {
   });
   it("index.html 에 빌드 플러그인이 채울 빈 자리가 그대로 있고, app.ts 는 비었을 때만 채워요", () => {
     expect(read("index.html")).toContain('<div class="tools" id="tool-grid"></div>');
-    expect(read("vite.config.ts")).toMatch(/toolGridPlugin\(\), hwpPagePlugin\(\), swPlugin\(\)/);
+    expect(read("vite.config.ts")).toMatch(/toolGridPlugin\(\), guidePagePlugin\(\), swPlugin\(\)/);
     expect(read("src/app.ts")).toMatch(/if \(!grid\.querySelector\("\.tool-item"\)\) grid\.innerHTML = toolGridHtml\(\)/);
   });
   it("모든 도구에 화면 코드가 붙어 있어요", () => {

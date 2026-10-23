@@ -1,7 +1,7 @@
 // 집문서 서비스 워커 — 한 번 열었으면 인터넷이 없어도 첫 화면과 한 번 쓴 도구가 열려요(파일은 원래 이 브라우저 안에서만 다뤄요).
 // 아래 VERSION·CORE 자리는 vite.config.ts 의 swPlugin 이 빌드 결과(해시 붙은 JS 이름)와 그 내용으로 채워서 dist/sw.js 로 써요.
 // 클래식 스크립트라 import/export 가 없어요.
-// - 페이지: 네트워크 우선, 3초 안에 안 오면 저장해 둔 화면(첫 화면 './', '/hwp', '/privacy', '/licenses' — 서로 덮지 않게 자리를 나눠요)
+// - 페이지: 네트워크 우선, 3초 안에 안 오면 저장해 둔 화면(첫 화면 './', '/hwp', '/pdf-compress', '/pdf-merge', '/privacy', '/licenses' — 서로 덮지 않게 자리를 나눠요)
 // - 화면 JS·CSS·아이콘: 미리 저장 + 저장해 둔 것 먼저, 뒤에서 갱신
 // - /vendor/*(pdf-lib·PDF.js·rhwp WASM·글꼴 등, 이름에 버전이 붙어 바뀌지 않는 파일): 미리 받지 않고, 그 도구를 한 번 쓰면 따로 저장해요(앱 버전이 바뀌어도 남아요).
 //   화면이 형식이 틀린 응답을 보고 캐시를 건너뛰어(cache: 'reload') 다시 받으면 여기서도 네트워크로 가서 저장본을 고쳐요. HTML(404 화면)은 저장하지 않아요
@@ -14,7 +14,7 @@ const CORE = __SW_PRECACHE__;
 const VENDOR = 'jms-vendor-v1';
 const PREV = 'jms-prev';
 const NAV_TIMEOUT = 3000;
-const PAGES = { '/hwp': './hwp', '/privacy': './privacy', '/licenses': './licenses' };
+const PAGES = { '/hwp': './hwp', '/pdf-compress': './pdf-compress', '/pdf-merge': './pdf-merge', '/privacy': './privacy', '/licenses': './licenses' };
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

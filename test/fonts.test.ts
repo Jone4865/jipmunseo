@@ -10,7 +10,7 @@ import { readWoff2Names } from "../dev/font-names.mjs";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (f: string) => fs.readFileSync(path.join(root, f), "utf8");
 const saved = JSON.parse(read("dev/fonts-chars.json")) as { core: string; missing: string; files: Record<string, string> };
-const PAGES = ["index.html", "public/hwp.html", "public/privacy.html", "public/licenses.html", "public/404.html"];
+const PAGES = ["index.html", "public/hwp.html", "public/pdf-compress.html", "public/pdf-merge.html", "public/privacy.html", "public/licenses.html", "public/404.html"];
 
 test("화면 문구의 글자가 모두 줄인 글꼴(첫 파일)에 있어요 — 없으면 npm run fonts", () => {
   const have = new Set([...saved.core, ...saved.missing]);

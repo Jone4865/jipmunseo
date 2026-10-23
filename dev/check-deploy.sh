@@ -29,6 +29,8 @@ for f in dist/js/*.js; do [[ -e $f ]] && check "/js/${f##*/}" 200 "$JS"; done
 for f in dist/css/*.css; do [[ -e $f ]] && check "/css/${f##*/}" 200 ^text/css; done
 check / 200 ^text/html
 check /hwp 200 ^text/html
+check /pdf-compress 200 ^text/html
+check /pdf-merge 200 ^text/html
 check /licenses 200 ^text/html
 check /privacy 200 ^text/html
 # 없는 주소: 404 여야 해요(첫 화면 200 이면 404.html 이 빠진 거예요)

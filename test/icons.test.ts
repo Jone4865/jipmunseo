@@ -5,11 +5,11 @@ import { test } from "vitest";
 import assert from "node:assert/strict";
 import { ICONS } from "../src/icons.js";
 
-const HTML = ["index.html", "public/hwp.html", "public/privacy.html", "public/404.html", "public/licenses.html"];
+const HTML = ["index.html", "public/hwp.html", "public/pdf-compress.html", "public/pdf-merge.html", "public/privacy.html", "public/404.html", "public/licenses.html"];
 const SCREEN = [...HTML, "public/css/style.css", ...fs.readdirSync("src").filter((f) => f.endsWith(".ts")).map((f) => path.join("src", f))];
 
 test("정적 HTML 의 커피잔은 icons.ts 의 cup 과 같아요", () => {
-  for (const f of ["index.html", "public/hwp.html", "public/privacy.html"]) {
+  for (const f of ["index.html", "public/hwp.html", "public/pdf-compress.html", "public/pdf-merge.html", "public/privacy.html"]) {
     const html = fs.readFileSync(f, "utf8");
     const svgs = html.match(/<svg class="ic-cup"[\s\S]*?<\/svg>/g) ?? [];
     assert.equal(svgs.length, 1, f);

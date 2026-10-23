@@ -1,22 +1,28 @@
-// 검색용 안내 페이지(/hwp)의 작은 화면 코드 — 도구 코드는 싣지 않아요(HWP_SPEC 0장 결정 5번).
-// 'HWP 파일 열기'를 누르면 이 자리에서 파일 고르기 창을 열고, 고른 파일을 첫 화면의 HWP 보기로 넘겨요(src/handoff.ts).
-// 예전에는 도구 화면으로 넘어간 뒤 점선 상자를 한 번 더 눌러야 했어요(QA 8바퀴). 이 코드가 못 돌면 링크(/#hwp-view)가 그대로 일해요.
-import { putHandoff, handoffTarget, handoffFailUrl } from "./handoff.js";
+// 검색용 안내 페이지(/hwp·/pdf-compress·/pdf-merge)의 작은 화면 코드 — 도구 코드는 싣지 않아요(HWP_SPEC 0장 결정 5번).
+// 'HWP 파일 열기'·'PDF 고르기'를 누르면 이 자리에서 파일 고르기 창을 열고, 고른 파일을 첫 화면의 도구로 넘겨요(src/handoff.ts).
+// 예전에는 도구 화면으로 넘어간 뒤 점선 상자를 한 번 더 눌러야 했어요(QA 8바퀴 /hwp, QA 9바퀴 PDF 두 페이지). 이 코드가 못 돌면 링크(/#도구)가 그대로 일해요.
+import { putHandoff, handoffTarget, handoffFailUrl, GUIDE_TOOLS, type GuideTool } from "./handoff.js";
+
+const first = document.querySelector<HTMLAnchorElement>("a[data-pick]");
+const asked = first?.dataset.pick || "";
+const page: GuideTool = (GUIDE_TOOLS as readonly string[]).includes(asked) ? (asked as GuideTool) : "hwp-view";
 
 /** 고른 파일을 넘기고 도구로 가요. 넘기지 못해도(저장소를 못 쓰는 브라우저) 도구로는 가고, 거기서 다시 고르라고 알려요 */
 async function go(files: File[]): Promise<void> {
   if (!files.length) return;
-  const { tool, url } = handoffTarget(files);
+  const { tool, url } = handoffTarget(files, page);
   document.documentElement.classList.add("hw-going");
   location.href = (await putHandoff(tool, files)) ? url : handoffFailUrl(url);
 }
 
-// 휴대폰 파일 선택기가 .hwp 를 회색으로 막지 않게 도구와 같이 모든 파일을 받아요(내용은 도구가 가려요)
 const input = document.createElement("input");
 input.type = "file";
 input.hidden = true;
 input.tabIndex = -1;
 input.setAttribute("aria-hidden", "true");
+// HWP 는 휴대폰 파일 선택기가 .hwp 를 회색으로 막지 않게 도구와 같이 모든 파일을 받아요(내용은 도구가 가려요). PDF 페이지는 PDF 만, 합치기는 여러 개
+if (page !== "hwp-view") input.accept = "application/pdf,.pdf";
+input.multiple = page === "pdf-merge";
 input.addEventListener("change", () => { const fs = [...(input.files || [])]; input.value = ""; void go(fs); });
 document.body.append(input);
 

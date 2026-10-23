@@ -1,4 +1,4 @@
-// 안내 페이지(/hwp)에서 고른 파일을 첫 화면의 도구로 넘기는 곳(QA 8바퀴).
+// 안내 페이지(/hwp, QA 9바퀴부터 /pdf-compress·/pdf-merge 도)에서 고른 파일을 첫 화면의 도구로 넘기는 곳(QA 8바퀴).
 // 예전에는 /hwp 의 'HWP 파일 열기'가 도구 화면으로 넘어가기만 해서 파일 고르기 창까지 한 번 더 눌러야 했어요.
 // 페이지가 바뀌면 File 을 그대로 들고 갈 수 없어서, 넘어가는 동안만 이 브라우저의 IndexedDB 에 두고
 // 도구 화면이 꺼내자마자 저장소째 지워요. 꺼내지 못하고 남은 것도 다음에 첫 화면을 열 때 지워요(처리방침 '넣은 파일').
@@ -9,10 +9,18 @@ export const HANDOFF_FLAG = "jms.handoff";
 export const HANDOFF_MAX_AGE = 2 * 60 * 1000;
 
 /**
- * 한글 문서 한 개면 HWP 보기로, 그 밖(PDF·사진·여러 개)은 첫 화면에 떨어뜨린 것처럼 쓸 도구를 고르게 해요(app.ts offerTools).
+ * 안내 페이지(/hwp·/pdf-compress·/pdf-merge — page 는 그 페이지의 도구)에서 고른 파일을 어디로 넘길지.
+ * 그 페이지의 도구에 맞는 파일이면 그 도구로 바로 가요(PDF 용량 줄이기는 PDF 하나, 합치기는 PDF 여러 개).
+ * 그 밖에 한글 문서 한 개면 HWP 보기로, 나머지(사진·종류가 섞인 것)는 첫 화면에 떨어뜨린 것처럼 쓸 도구를 고르게 해요(app.ts offerTools).
  * 예전처럼 HWP 보기에 넣으면 PDF 에도 'HWP·HWPX 파일이 아니에요'만 나왔어요. 확장자가 바뀐 한글 문서는 첫 화면이 HWP 보기를 권하지 않으니, 그때는 HWP 보기에 직접 넣어 주세요(도구가 내용으로 가려요)
  */
-export function handoffTarget(files: { name: string }[]): { tool: string; url: string } {
+export const GUIDE_TOOLS = ["hwp-view", "pdf-compress", "pdf-merge"] as const;
+export type GuideTool = (typeof GUIDE_TOOLS)[number];
+const isPdf = (f: { name: string; type?: string }) => /\.pdf$/i.test(f.name) || String(f.type || "").toLowerCase() === "application/pdf";
+export function handoffTarget(files: { name: string; type?: string }[], page: GuideTool = "hwp-view"): { tool: string; url: string } {
+  const pdfs = files.length > 0 && files.every(isPdf);
+  if (page === "pdf-compress" && pdfs && files.length === 1) return { tool: "pdf-compress", url: "/#pdf-compress" };
+  if (page === "pdf-merge" && pdfs) return { tool: "pdf-merge", url: "/#pdf-merge" };
   return files.length === 1 && /\.hwpx?$/i.test(files[0].name) ? { tool: "hwp-view", url: "/#hwp-view" } : { tool: "", url: "/" };
 }
 

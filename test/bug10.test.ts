@@ -11,7 +11,7 @@ describe("/hwp 에서 고른 파일을 넘기지 못했을 때(사이트 저장�
     expect(handoffFailUrl("/")).toBe("/?handoff=0");
   });
   it("안내 페이지는 넘기기에 실패하면 그 주소로, 첫 화면은 표시를 보면 '다시 골라 주세요'를 알리고 주소에서 걷어요", () => {
-    expect(read("src/hwp-page.ts")).toContain("(await putHandoff(tool, files)) ? url : handoffFailUrl(url)");
+    expect(read("src/guide-page.ts")).toContain("(await putHandoff(tool, files)) ? url : handoffFailUrl(url)");
     const app = read("src/app.ts");
     expect(app).toContain('new URLSearchParams(location.search).get("handoff") === "0"');
     expect(app).toMatch(/history\.replaceState\(history\.state, "", location\.pathname \+ location\.hash\);[^\n]*\n\s*toast\("파일을 넘겨받지 못했어요/);

@@ -17,20 +17,23 @@ function toolGridPlugin() {
   };
 }
 
-/** 안내 페이지(/hwp)의 작은 화면 코드(src/hwp-page.ts — 'HWP 파일 열기'에서 바로 파일 고르기, QA 8바퀴).
- *  public/hwp.html 은 Vite 가 손대지 않아서, 빌드한 dist/hwp.html 의 자리표시 주소를 해시 붙은 이름으로 바꿔요(서비스 워커 목록보다 먼저) */
-export const HWP_PAGE_SRC = "/js/hwp-page.js";
-function hwpPagePlugin() {
+/** 검색용 안내 페이지(/hwp·/pdf-compress·/pdf-merge)의 작은 화면 코드(src/guide-page.ts — 'HWP 파일 열기'·'PDF 고르기'에서 바로 파일 고르기, QA 8·9바퀴).
+ *  public/ 의 안내 HTML 은 Vite 가 손대지 않아서, 빌드한 dist/ 의 자리표시 주소를 해시 붙은 이름으로 바꿔요(서비스 워커 목록보다 먼저) */
+export const GUIDE_PAGE_SRC = "/js/guide-page.js";
+export const GUIDE_PAGES = ["hwp.html", "pdf-compress.html", "pdf-merge.html"] as const;
+function guidePagePlugin() {
   return {
-    name: "jms-hwp-page",
+    name: "jms-guide-page",
     apply: "build" as const,
     writeBundle(opts: { dir?: string }, bundle: Record<string, { type: string; isEntry?: boolean; name?: string; fileName: string }>) {
-      const chunk = Object.values(bundle).find((c) => c.type === "chunk" && c.isEntry && c.name === "hwp-page");
-      if (!chunk || !opts.dir) throw new Error("hwp-page 묶음을 못 찾았어요");
-      const f = path.join(opts.dir, "hwp.html");
-      const html = fs.readFileSync(f, "utf8");
-      if (html.split(`src="${HWP_PAGE_SRC}"`).length !== 2) throw new Error(`hwp.html 에서 ${HWP_PAGE_SRC} 를 한 번만 찾아야 해요`);
-      fs.writeFileSync(f, html.replace(`src="${HWP_PAGE_SRC}"`, `src="/${chunk.fileName}"`));
+      const chunk = Object.values(bundle).find((c) => c.type === "chunk" && c.isEntry && c.name === "guide-page");
+      if (!chunk || !opts.dir) throw new Error("guide-page 묶음을 못 찾았어요");
+      for (const page of GUIDE_PAGES) {
+        const f = path.join(opts.dir, page);
+        const html = fs.readFileSync(f, "utf8");
+        if (html.split(`src="${GUIDE_PAGE_SRC}"`).length !== 2) throw new Error(`${page} 에서 ${GUIDE_PAGE_SRC} 를 한 번만 찾아야 해요`);
+        fs.writeFileSync(f, html.replace(`src="${GUIDE_PAGE_SRC}"`, `src="/${chunk.fileName}"`));
+      }
     },
   };
 }
@@ -45,12 +48,12 @@ const PDF_LIB = "/vendor/pdf-lib-1.17.1.esm.min.js";
 const RHWP = "/vendor/rhwp-0.8.7/rhwp.js";
 export default defineConfig({
   // 서비스 워커(dist/sw.js — 인터넷 없이 다시 열기, 한 번 쓴 도구의 vendor 저장). 빌드할 때만 만들어요
-  plugins: [toolGridPlugin(), hwpPagePlugin(), swPlugin()],
+  plugins: [toolGridPlugin(), guidePagePlugin(), swPlugin()],
   build: {
     assetsDir: "js",
     modulePreload: { polyfill: false },
     cssMinify: false,
-    rollupOptions: { input: { index: fileURLToPath(new URL("./index.html", import.meta.url)), "hwp-page": fileURLToPath(new URL("./src/hwp-page.ts", import.meta.url)) } },
+    rollupOptions: { input: { index: fileURLToPath(new URL("./index.html", import.meta.url)), "guide-page": fileURLToPath(new URL("./src/guide-page.ts", import.meta.url)) } },
   },
   worker: {
     format: "es",

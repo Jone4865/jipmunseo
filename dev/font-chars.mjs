@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 /** 화면에 나오는 글이 든 파일: 페이지 HTML(첫 화면·HWP 보기·처리방침·라이선스·404), 화면 코드(src, 시험·d.ts·한컴 PUA 표 빼고, 워커의 오류 문구도 화면에 나와요), 화면 CSS */
 export function siteFiles(root = '.') {
-  const out = ['index.html', 'public/hwp.html', 'public/privacy.html', 'public/licenses.html', 'public/404.html', 'public/css/style.css'].map((f) => join(root, f));
+  const out = ['index.html', 'public/hwp.html', 'public/pdf-compress.html', 'public/pdf-merge.html', 'public/privacy.html', 'public/licenses.html', 'public/404.html', 'public/css/style.css'].map((f) => join(root, f));
   for (const n of readdirSync(join(root, 'src'))) if (/\.ts$/.test(n) && !/\.(test|d)\.ts$|^hwp-pua/.test(n)) out.push(join(root, 'src', n));
   return out.sort();
 }

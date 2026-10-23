@@ -37,7 +37,7 @@ test("서비스 워커: vendor 는 한 번 쓰면 따로 저장(HTML·부분 응
   const headers = read("public/_headers");
   assert.match(headers, /\/sw\.js\n\s+Cache-Control: no-cache/);
   assert.match(headers, /connect-src 'self' blob: https:\/\/staticimgly\.com;/);
-  assert.match(read("vite.config.ts"), /plugins: \[toolGridPlugin\(\), hwpPagePlugin\(\), swPlugin\(\)\]/);
+  assert.match(read("vite.config.ts"), /plugins: \[toolGridPlugin\(\), guidePagePlugin\(\), swPlugin\(\)\]/);
   assert.match(read("src/app.ts"), /if \(import\.meta\.env\.PROD && "serviceWorker" in navigator\)/);
 });
 
