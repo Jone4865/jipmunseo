@@ -20,7 +20,7 @@ describe("안내 페이지에서 고른 파일을 그 페이지의 도구로", (
   it("그 도구에 맞지 않는 파일은 예전처럼 HWP 보기나 첫 화면 도구 고르기로", () => {
     expect(handoffTarget([{ name: "공고.hwp" }], "pdf-compress")).toEqual({ tool: "hwp-view", url: "/#hwp-view" });
     expect(handoffTarget([{ name: "a.pdf" }, { name: "b.pdf" }], "pdf-compress")).toEqual({ tool: "", url: "/" });
-    expect(handoffTarget([{ name: "a.pdf" }, { name: "b.jpg" }], "pdf-merge")).toEqual({ tool: "", url: "/" });
+    expect(handoffTarget([{ name: "a.jpg" }, { name: "b.jpg" }], "pdf-merge")).toEqual({ tool: "", url: "/" });
     expect(handoffTarget([{ name: "계약서.pdf" }])).toEqual({ tool: "", url: "/" }); // /hwp 는 그대로
   });
 

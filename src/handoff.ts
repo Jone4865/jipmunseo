@@ -10,7 +10,7 @@ export const HANDOFF_MAX_AGE = 2 * 60 * 1000;
 
 /**
  * 안내 페이지(/hwp·/pdf-compress·/pdf-merge — page 는 그 페이지의 도구)에서 고른 파일을 어디로 넘길지.
- * 그 페이지의 도구에 맞는 파일이면 그 도구로 바로 가요(PDF 용량 줄이기는 PDF 하나, 합치기는 PDF 여러 개).
+ * 그 페이지의 도구에 맞는 파일이면 그 도구로 바로 가요(PDF 용량 줄이기는 PDF 하나, 합치기는 PDF 가 하나라도 들었으면).
  * 그 밖에 한글 문서 한 개면 HWP 보기로, 나머지(사진·종류가 섞인 것)는 첫 화면에 떨어뜨린 것처럼 쓸 도구를 고르게 해요(app.ts offerTools).
  * 예전처럼 HWP 보기에 넣으면 PDF 에도 'HWP·HWPX 파일이 아니에요'만 나왔어요. 확장자가 바뀐 한글 문서는 첫 화면이 HWP 보기를 권하지 않으니, 그때는 HWP 보기에 직접 넣어 주세요(도구가 내용으로 가려요)
  */
@@ -20,7 +20,9 @@ const isPdf = (f: { name: string; type?: string }) => /\.pdf$/i.test(f.name) || 
 export function handoffTarget(files: { name: string; type?: string }[], page: GuideTool = "hwp-view"): { tool: string; url: string } {
   const pdfs = files.length > 0 && files.every(isPdf);
   if (page === "pdf-compress" && pdfs && files.length === 1) return { tool: "pdf-compress", url: "/#pdf-compress" };
-  if (page === "pdf-merge" && pdfs) return { tool: "pdf-merge", url: "/#pdf-merge" };
+  // 합치기 페이지에 PDF 와 다른 파일을 같이 넣으면 예전에는 첫 화면으로 가서 '종류가 다른 파일이 섞여 있어요'만 띄우고 고른 PDF 까지 버렸어요.
+  // 합치기 도구는 맞지 않는 파일만 빼고 이름을 알려 주니(ui.ts filterFiles) PDF 가 하나라도 있으면 그대로 넘겨요(버그 찾기 11차)
+  if (page === "pdf-merge" && files.some(isPdf)) return { tool: "pdf-merge", url: "/#pdf-merge" };
   return files.length === 1 && /\.hwpx?$/i.test(files[0].name) ? { tool: "hwp-view", url: "/#hwp-view" } : { tool: "", url: "/" };
 }
 
