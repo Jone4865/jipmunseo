@@ -357,6 +357,15 @@ export function nextToolsFor(file: { name?: string; type?: string }, current: st
     : k === "image" ? ["img-compress", "img-to-pdf", "id-mask"] : [];
   return ids.filter((id) => id !== current);
 }
+/**
+ * 아래에 붙은 '내보내기'를 눌렀을 때(버그 찾기 12차): 칸이 열려 있어도 화면 아래 밖이면 닫지 않고 그 칸을 보여 줘요.
+ * QA 10바퀴에 단추를 화면 아래에 붙인 뒤로, 칸을 연 채 위로 올라가 문서를 보다가 다시 누르면 화면 밖에서 칸이 닫혀
+ * 눌러도 아무 일이 없는 것처럼 보였어요(한 번 더 눌러야 열렸어요)
+ */
+export function exportPress(open: boolean, boxTop: number, viewH: number): "open" | "close" | "show" {
+  if (!open) return "open";
+  return boxTop > viewH * 0.7 ? "show" : "close";
+}
 /** 결과 줄 여러 개 중 이어서 넘길 하나: PDF 가 하나면 그것(가리기의 JPG+PDF), 아니면 줄이 하나일 때만 */
 export function pickNextSource<T extends { name: string; type?: string }>(items: readonly T[]): T | null {
   const pdfs = items.filter((x) => kindOf(x) === "pdf");

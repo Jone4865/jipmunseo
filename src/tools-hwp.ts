@@ -11,7 +11,7 @@
 import { h, icon, dropzone, progress, alertBox, resultItem, seg, stickyActions, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, once, focusIfLost, setDisabledKeepingFocus, touchFirst, type Seg } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref } from "./prefs.js";
-import { formatSize, parseRanges, rangesToSet } from "./lib.js";
+import { formatSize, parseRanges, rangesToSet, exportPress } from "./lib.js";
 import { sniffHwp, distributionFlags, hwpPolicy, hwpErrorCode, pdfEstimateKB, pngEstimateKB, maxExportPages, type HwpSniff, type HwpPolicy, type HwpDpi } from "./hwp-lib.js";
 import { prepareSvg, pxToPt, FONT_BASE, FAMILY, type FontFace, type Fonts } from "./hwp-svg.js";
 import { exportRules, exportName, warnLines, EXPORT_FORMATS, type ExportFormat, type ExportRule, type Warn } from "./hwp-export.js";
@@ -245,7 +245,8 @@ export function mountHwp(root: HTMLElement): Mounted {
 
   /* 내보내기 */
   const exportBtn = h("button", { type: "button", class: "btn primary", "aria-expanded": "false", onclick: () => {
-    toggleExport();
+    // 열린 칸이 화면 아래 밖이면(칸을 연 채 위로 올라가 문서를 보던 중) 닫지 않고 보여 줘요(버그 찾기 12차)
+    if (exportPress(!exportBox.hidden, exportBox.getBoundingClientRect().top, window.innerHeight) !== "show") toggleExport();
     // 두 번 톡톡 누르면 열렸다 바로 닫혔어요. 화면 맨 아래에서 누르면 열린 칸이 화면 밖이라 아무 일이 없는 것처럼 보였어요 → 보이게 올려요
     holdTaps();
     if (!exportBox.hidden && exportBox.getBoundingClientRect().top > window.innerHeight * 0.7) {
