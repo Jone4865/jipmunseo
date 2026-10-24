@@ -49,6 +49,11 @@ nav .links a { text-decoration: none; padding: 8px 0; }
 h1 { font-size: clamp(40px, 6.4vw, 68px); line-height: 1.08; margin: 0 0 18px; letter-spacing: -.035em; font-weight: 850; }
 .lead { color: var(--muted); font-size: 18px; margin: 0; max-width: 560px; }
 .lead b { color: var(--ink); font-weight: 650; }
+/* 첫 화면에서 바로 파일 고르기 — 손가락 화면에는 끌어다 놓기·붙여넣기가 없어서 파일부터 시작하는 길이 없었어요 */
+.hero-start { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 22px 0 0; }
+.hero-start:empty { display: none; }
+.hero-start-sub { font-size: 14px; color: var(--muted); max-width: 340px; text-wrap: pretty; }
+
 /* 최근에 쓴 도구 — 다시 온 사람이 작업대까지 내려가지 않게 */
 .recent { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; margin: 18px 0 0; padding: 0; }
 .recent[hidden] { display: none; }
@@ -372,7 +377,7 @@ input[type="range"] { width: 100%; accent-color: var(--acc); min-height: 32px; }
 }
 @media (max-width: 820px) {
   .hero { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 18px 0 32px; }
-  .hero-desk { max-width: 460px; }
+  .hero-desk { width: 100%; max-width: 520px; margin-inline: auto; } /* 768 에서 460px 짜리 매트가 왼쪽에 붙어 오른쪽 270px 이 비어 있었어요(QA 11바퀴) */
   nav .links { display: none; }
 }
 @media (max-width: 600px) {

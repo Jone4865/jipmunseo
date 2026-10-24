@@ -67,6 +67,22 @@ function renderRecent(): void {
   box.replaceChildren(...(recent.length ? [h("span", { class: "recent-lbl" }, "최근에 쓴 도구"), ...recent.map((id) => h("a", { href: `#${id}` }, ...arrowed(byId[id].title)))] : []));
 }
 
+/**
+ * 첫 화면에서 바로 파일 고르기(QA 11바퀴) — 마우스 화면에는 '끌어다 놓기·붙여넣기'로 파일부터 시작하는 길이 있었는데
+ * 손가락 화면에는 없어서, 처음 온 사람이 도구 10개 중 하나를 스스로 고른 뒤 점선 상자까지 두 번 눌러야 했어요.
+ * 고른 파일은 떨어뜨렸을 때와 똑같이 offerTools 로 보내요(도구가 하나면 바로 열려요).
+ */
+function mountHeroStart(): void {
+  const box = document.getElementById("hero-start");
+  if (!box) return;
+  const input = h("input", { type: "file", accept: ".hwp,.hwpx,application/pdf,.pdf,image/*,.heic,.heif", multiple: true, tabindex: "-1", "aria-hidden": "true", style: "display:none" }) as HTMLInputElement;
+  input.addEventListener("change", () => { const fs = [...(input.files as FileList)]; input.value = ""; if (fs.length) offerTools(fs); });
+  box.replaceChildren(
+    h("button", { type: "button", class: "btn primary", onclick: () => input.click() }, "파일 고르기"),
+    h("span", { class: "hero-start-sub" }, "HWP · PDF · 사진을 넣으면 쓸 도구를 보여 줘요"),
+    input);
+}
+
 /* 첫 화면에 떨어뜨린 파일 → 쓸 도구를 고르면 그 도구에 파일을 넘겨요 */
 let handoff: File[] | null = null;
 function offerTools(files: File[]): void {
@@ -194,6 +210,7 @@ function route(first = false) {
 
 window.addEventListener("hashchange", () => route());
 route(true);
+mountHeroStart();
 
 /* 안내 페이지(/hwp)에서 고른 파일 — 넘어오는 동안만 IndexedDB 에 두고 꺼내자마자 지워요(src/handoff.ts, 처리방침 '넣은 파일').
    첫 화면 무게를 그대로 두려고 표시(sessionStorage 'jms.handoff' = HANDOFF_FLAG)나 남은 저장소가 있을 때만 코드를 받아요 */

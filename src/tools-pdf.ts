@@ -191,7 +191,9 @@ export function mountSplit(root: HTMLElement): Mounted {
         return card;
       }));
       update();
-    } catch (e) { if (g === loadGen) { err.show(errMsg(e)); reset(); } }
+    // reset() 이 loadGen 을 올려서 finally 의 prog.hide() 가 건너뛰어졌어요 — '여는 중…' 막대가 남고, reset() 안의 err.hide() 가
+    // 방금 띄운 까닭까지 지워서 깨진 PDF 를 넣으면 끝나지 않는 막대만 보였어요(QA 11바퀴). 걷어낸 뒤에 까닭을 띄워요
+    } catch (e) { if (g === loadGen) { reset(); prog.hide(); err.show(errMsg(e)); } }
     finally { if (g === loadGen) prog.hide(); }
   }
 
@@ -336,7 +338,9 @@ export function mountOrganize(root: HTMLElement): Mounted {
       fileLine.replaceChildren(h("b", { style: "color:var(--ink)" }, file.name), ` · ${C().pages}쪽 · ${formatSize(file.size)}`);
       focusIfLost(fileLine);
       render();
-    } catch (e) { if (g === loadGen) { err.show(errMsg(e)); reset(); } }
+    // reset() 이 loadGen 을 올려서 finally 의 prog.hide() 가 건너뛰어졌어요 — '여는 중…' 막대가 남고, reset() 안의 err.hide() 가
+    // 방금 띄운 까닭까지 지워서 깨진 PDF 를 넣으면 끝나지 않는 막대만 보였어요(QA 11바퀴). 걷어낸 뒤에 까닭을 띄워요
+    } catch (e) { if (g === loadGen) { reset(); prog.hide(); err.show(errMsg(e)); } }
     finally { if (g === loadGen) prog.hide(); }
   }
   function render() {
@@ -472,7 +476,9 @@ export function mountPdfCompress(root: HTMLElement): Mounted {
       dz.hidden = true; work.hidden = false;
       focusIfLost(fileLine);
       sync();
-    } catch (e) { if (g === loadGen) { err.show(errMsg(e)); reset(); } }
+    // reset() 이 loadGen 을 올려서 finally 의 prog.hide() 가 건너뛰어졌어요 — '여는 중…' 막대가 남고, reset() 안의 err.hide() 가
+    // 방금 띄운 까닭까지 지워서 깨진 PDF 를 넣으면 끝나지 않는 막대만 보였어요(QA 11바퀴). 걷어낸 뒤에 까닭을 띄워요
+    } catch (e) { if (g === loadGen) { reset(); prog.hide(); err.show(errMsg(e)); } }
     finally { if (g === loadGen) prog.hide(); }
   }
 

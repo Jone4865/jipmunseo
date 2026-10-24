@@ -247,7 +247,8 @@ export function mountMask(root: HTMLElement): Mounted {
       focusIfLost(fileLine);
       cur = 0;
       changed();
-    } catch (e) { if (stale()) return; err.show(errMsg(e)); reset(); }
+    // reset() 이 loadGen 을 올려 아래 finally 가 '옛 열기'로 보고 진행 막대를 그대로 뒀고, reset() 안의 err.hide() 가 까닭까지 지웠어요(QA 11바퀴)
+    } catch (e) { if (stale()) return; reset(); prog.hide(); err.show(errMsg(e)); }
     finally {
       if (stale()) for (const p of opened) p.canvas.width = p.canvas.height = 0;
       else prog.hide(); // 옛 열기가 새로 여는 중인 진행 표시를 걷지 않게
