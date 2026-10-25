@@ -9,7 +9,11 @@ type Progress = (done: number, total: number) => void;
 
 async function load(buf: ArrayBuffer): Promise<PdfLibDocument> {
   try {
-    return await PDFDocument.load(buf, { updateMetadata: false });
+    const d = await PDFDocument.load(buf, { updateMetadata: false });
+    // 머리('%PDF-')만 맞고 몸이 깨진 파일은 load 가 통과하고 쪽 목록을 볼 때 영어 오류("Cannot read properties of undefined
+    // (reading 'Pages')")가 그대로 화면에 나왔어요(합치기 줄·용량 줄이기, 버그 찾기 13차) → 여기서 쪽 목록까지 읽어 같은 안내로 바꿔요
+    d.getPageCount();
+    return d;
   } catch (e) {
     const msg = String(e && (e as Error).message || e);
     if (/encrypt/i.test(msg)) throw new Error("암호가 걸린 PDF예요. 암호를 푼 뒤 다시 넣어 주세요.");

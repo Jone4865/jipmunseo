@@ -23,10 +23,8 @@ describe("첫 화면에서 바로 파일 고르기", () => {
     const app = read("src/app.ts");
     const fn = app.slice(app.indexOf("function mountHeroStart()"), app.indexOf("/* 첫 화면에 떨어뜨린 파일"));
     expect(fn).toMatch(/offerTools\(fs\)/);
-    // 파일 칸은 집문서가 다루는 종류를 모두 받아요(한글·PDF·사진)
-    expect(fn).toMatch(/\.hwp,\.hwpx/);
-    expect(fn).toMatch(/application\/pdf/);
-    expect(fn).toMatch(/image\/\*/);
+    // 파일 칸은 모든 파일을 받아요(accept 를 적으면 휴대폰 선택기가 .hwp 를 막아요 — 버그 찾기 13차, test/bug13.test.ts)
+    expect(fn).not.toMatch(/accept:/);
   });
 
   it("한글 문서 하나는 도구를 고르지 않고 바로 HWP 보기로 가요(누르는 수 1번)", () => {

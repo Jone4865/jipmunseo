@@ -75,7 +75,9 @@ function renderRecent(): void {
 function mountHeroStart(): void {
   const box = document.getElementById("hero-start");
   if (!box) return;
-  const input = h("input", { type: "file", accept: ".hwp,.hwpx,application/pdf,.pdf,image/*,.heic,.heif", multiple: true, tabindex: "-1", "aria-hidden": "true", style: "display:none" }) as HTMLInputElement;
+  // accept 를 두지 않아요: '.hwp,.hwpx,…'를 적으면 휴대폰 파일 선택기(안드로이드·아이폰)가 형식을 모르는 .hwp 를 회색으로 막아서
+  // 한글 문서를 고를 수 없었어요(버그 찾기 13차). HWP 보기·/hwp 안내 페이지와 같이 모든 파일을 받고, 쓸 도구가 없으면 offerTools 가 알려요
+  const input = h("input", { type: "file", multiple: true, tabindex: "-1", "aria-hidden": "true", style: "display:none" }) as HTMLInputElement;
   input.addEventListener("change", () => { const fs = [...(input.files as FileList)]; input.value = ""; if (fs.length) offerTools(fs); });
   box.replaceChildren(
     h("button", { type: "button", class: "btn primary", onclick: () => input.click() }, "파일 고르기"),
@@ -228,10 +230,14 @@ if (handoffFailed) {
     else toast("파일을 넘겨받지 못했어요. 점선 상자를 눌러 다시 골라 주세요");
   }).catch(() => toast("파일을 넘겨받지 못했어요. 점선 상자를 눌러 다시 골라 주세요"));
 } else {
-  // 넘기는 중에 탭을 닫아 남은 것은 꺼내지 않고 지워요
-  (indexedDB as IDBFactory & { databases?: () => Promise<{ name?: string }[]> }).databases?.()
-    .then((dbs) => { if (dbs.some((d) => d.name === "jms-handoff")) return import("./handoff.js").then((m) => m.clearHandoff()); })
-    .catch(() => {});
+  // 넘기는 중에 탭을 닫아 남은 것은 꺼내지 않고 지워요.
+  // 사이트 데이터를 막은 Firefox 는 indexedDB 를 읽기만 해도 SecurityError 를 던져요 — 예전에는 여기서 첫 화면 코드가 멈춰서
+  // HWP 보기가 '도구를 불러오지 못했어요'로 막히고 끌어다 놓은 파일이 브라우저 화면으로 열렸어요(버그 찾기 13차)
+  try {
+    (indexedDB as IDBFactory & { databases?: () => Promise<{ name?: string }[]> }).databases?.()
+      .then((dbs) => { if (dbs.some((d) => d.name === "jms-handoff")) return import("./handoff.js").then((m) => m.clearHandoff()); })
+      .catch(() => {});
+  } catch {}
 }
 
 /* 화면 읽기: 도구가 결과를 그리면 그 제목('3쪽짜리 PDF가 만들어졌어요')을 한 번 읽어 줘요.
