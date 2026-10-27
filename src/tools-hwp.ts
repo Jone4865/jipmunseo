@@ -11,7 +11,7 @@
 import { h, icon, dropzone, progress, alertBox, resultItem, seg, stickyActions, toast, runPdf, canvasToBlob, LIMITS, MAX_PIXELS, IS_IOS, once, focusIfLost, setDisabledKeepingFocus, touchFirst, type Seg } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref } from "./prefs.js";
-import { formatSize, parseRanges, rangesToSet, exportPress } from "./lib.js";
+import { formatSize, parseRanges, rangesToSet, exportPress, initialFormat } from "./lib.js";
 import { sniffHwp, distributionFlags, hwpPolicy, hwpErrorCode, pdfEstimateKB, pngEstimateKB, maxExportPages, type HwpSniff, type HwpPolicy, type HwpDpi } from "./hwp-lib.js";
 import { prepareSvg, pxToPt, FONT_BASE, FAMILY, type FontFace, type Fonts } from "./hwp-svg.js";
 import { exportRules, exportName, warnLines, EXPORT_FORMATS, type ExportFormat, type ExportRule, type Warn } from "./hwp-export.js";
@@ -278,10 +278,11 @@ export function mountHwp(root: HTMLElement): Mounted {
     h("div", { class: "opt" }, h("span", { class: "lbl" }, "화질"), dpiSeg));
   const optsBox = h("div", { class: "hwp-opts" },
     picOpts,
-    optHint,
-    h("div", { class: "actions" }, makeBtn));
+    optHint);
+  // 만들기 단추도 열린 칸 안에서 화면 아래에 붙어요(QA 12바퀴). 390×844 에서 '내보내기'를 누르면 형식 카드 넷·쪽·화질 아래
+  // 'PDF 만들기'가 화면 바로 밑(839px)이라 매번 한 번 밀어 올려야 했어요. 칸 안에서만 붙어서 문서를 볼 때는 나오지 않아요
   const exportBox = h("div", { class: "hwp-export", hidden: true },
-    h("h2", { class: "sub-h" }, "어떤 파일로 저장할까요?"), fmtGroup, optsBox);
+    h("h2", { class: "sub-h" }, "어떤 파일로 저장할까요?"), fmtGroup, optsBox, stickyActions(makeBtn));
   // '내보내기'는 다른 도구의 만들기 단추처럼 화면 아래에 붙어요(QA 10바퀴). 예전에는 쪽 그림 밑에 있어서 1280×900 에서도
   // 문서를 열면 단추가 화면 밖(400px 아래)이라, HWP 를 PDF 로 바꾸러 온 사람이 할 일을 찾아 내려가야 했어요.
   // 붙으려면 줄이 보기 칸(.hwp-viewer)의 바로 아래 자식이어야 해서 감싸는 칸은 display: contents 예요
@@ -547,9 +548,9 @@ export function mountHwp(root: HTMLElement): Mounted {
   document.addEventListener("keydown", onKey);
 
   /* ───── 내보내기: 형식 고르기 ───── */
-  /** 허용된 것 중 첫 번째(보통 PDF). 형식은 기억하지 않아요(설계 '선택' 항목 — 기억하는 건 화질·굵은 글꼴 두 개만) */
+  /** 지난번에 고른 형식이 이 문서에서 되면 그 형식, 아니면 되는 것 중 첫 번째(배포용·복사 방지 문서는 PDF·쪽 그림으로 돌아가요) */
   function pickInitialFormat(d: Doc): ExportFormat {
-    return EXPORT_FORMATS.find((f) => d.rules[f].ok) ?? "pdf";
+    return initialFormat<ExportFormat>(readPref(PREF.hwpFmt), (f) => d.rules[f].ok, EXPORT_FORMATS);
   }
   function toggleExport(open?: boolean): void {
     const on = open ?? exportBox.hidden;
@@ -587,6 +588,7 @@ export function mountHwp(root: HTMLElement): Mounted {
   });
   function choose(f: ExportFormat): void {
     fmt = f;
+    writePref(PREF.hwpFmt, f); // Word 로만 옮기는 사람이 문서마다 Word 카드를 다시 누르지 않게(QA 12바퀴)
     if (!busy) { out.replaceChildren(); lastPngs = []; prog.hide(); }
     renderFormats();
     updateOpts();

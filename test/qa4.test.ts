@@ -40,7 +40,7 @@ describe("두 번 톡톡 거르기(tap.ts)", () => {
 describe("화면 밖에 생기던 진행 표시·결과·내보내기 칸", () => {
   it("결과가 생기면 보이게 내리고, 초점을 잃었으면 내려받기 단추로", () => {
     const app = read("src/app.ts");
-    expect(app).toMatch(/revealIfBelow\(res as HTMLElement\);\s*focusIfLost\(res\?\.querySelector<HTMLElement>\("button\.primary"\) \?\? null\);/);
+    expect(app).toMatch(/revealResult\(res as HTMLElement\);\s*focusIfLost\(res\?\.querySelector<HTMLElement>\("button\.primary"\) \?\? null\);/);
     expect(read("src/ui.ts")).toMatch(/const was = el\.hidden;\s*el\.hidden = false;\s*if \(was\) revealIfBelow\(el\);/);
     expect(read("src/tools-hwp.ts")).toMatch(/exportBox\.getBoundingClientRect\(\)\.top > window\.innerHeight \* 0\.7/);
   });

@@ -366,6 +366,23 @@ export function exportPress(open: boolean, boxTop: number, viewH: number): "open
   if (!open) return "open";
   return boxTop > viewH * 0.7 ? "show" : "close";
 }
+/**
+ * HWP 내보내기 칸을 열 때 골라 둘 형식: 지난번 형식(기억한 값)이 이 문서에서 되면 그것, 아니면 되는 것 중 첫 번째(QA 12바퀴).
+ * Word 로만 옮기는 사람은 문서를 열 때마다 Word 카드를 한 번 더 눌러야 했어요. 배포용·복사 방지 문서처럼 막히면 PDF 쪽으로 돌아가요
+ */
+export function initialFormat<F extends string>(saved: string | null, ok: (f: F) => boolean, order: readonly F[] = ["pdf", "docx", "png", "txt"] as unknown as F[]): F {
+  if (saved !== null && (order as readonly string[]).includes(saved) && ok(saved as F)) return saved as F;
+  return order.find((f) => ok(f)) ?? order[0];
+}
+/** 합치기 단추 글: 열린 PDF 가 2개 미만이면 무엇이 모자란지, 깨진 파일이 섞였으면 '열리는' PDF 로 말해요(QA 12바퀴) */
+export function mergeGoLabel(good: number, bad: number, pages: number): string {
+  if (good >= 2) return `${good}개 합치기 (${pages}쪽)`;
+  return bad ? "열리는 PDF를 2개 이상 넣어 주세요" : "PDF를 2개 이상 넣어 주세요";
+}
+/** 목록 아래 안내: 못 읽은 PDF 는 합칠 때 빠져요 */
+export function mergeBadNote(bad: number, good: number): string {
+  return good >= 2 ? `못 읽은 PDF ${bad}개는 빼고 합쳐요.` : `못 읽은 PDF ${bad}개는 합칠 수 없어요.`;
+}
 /** 결과 줄 여러 개 중 이어서 넘길 하나: PDF 가 하나면 그것(가리기의 JPG+PDF), 아니면 줄이 하나일 때만 */
 export function pickNextSource<T extends { name: string; type?: string }>(items: readonly T[]): T | null {
   const pdfs = items.filter((x) => kindOf(x) === "pdf");

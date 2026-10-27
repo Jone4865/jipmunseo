@@ -20,6 +20,6 @@ describe("Tab 초점이 아래에 붙은 단추 줄 밑에 숨지 않게", () =>
   it("키보드 초점만 — 손가락·마우스로 누를 때는 화면을 움직이지 않아요(두 번째 누름이 다른 것에 닿지 않게)", () => {
     const ui = read("src/ui.ts");
     expect(ui).toMatch(/matches\(":focus-visible"\)/);
-    expect(ui).toMatch(/bar\.contains\(t\)\) return/); // 붙은 줄 안의 단추로 가면 화면을 움직이지 않아요
+    expect(ui).toMatch(/bars\.some\(\(b\) => b\.contains\(t\)\)\) return/); // 붙은 줄 안의 단추로 가면 화면을 움직이지 않아요
   });
 });

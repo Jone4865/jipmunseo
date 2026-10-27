@@ -145,6 +145,24 @@ export function revealIfBelow(el: HTMLElement | null | undefined, block: ScrollL
 }
 
 /**
+ * 결과를 보이게 굴릴 거리(px, 0이면 그대로). 결과 제목만 화면 끝에 걸치면 '내려받기'가 반쯤 잘려 있었어요(QA 12바퀴 —
+ * 390×844 에서 HWP → Word 를 만들면 단추 46px 중 32px 만 보였어요) → 첫 내려받기 단추 아래까지 보이게, 제목은 화면 위로 넘기지 않아요
+ */
+export function resultScroll(resTop: number, btnBottom: number | null, viewH: number, pad = 16): number {
+  const want = btnBottom !== null ? btnBottom - viewH + pad : resTop - viewH + 48;
+  if (want <= 0) return 0;
+  return Math.max(0, Math.min(Math.ceil(want), Math.floor(resTop - pad)));
+}
+export function revealResult(res: HTMLElement | null | undefined): void {
+  if (!res || !res.isConnected || res.closest("[hidden]")) return;
+  const btn = res.querySelector<HTMLElement>("button.primary");
+  const dy = resultScroll(res.getBoundingClientRect().top, btn ? btn.getBoundingClientRect().bottom : null, window.innerHeight);
+  if (!dy) return;
+  const smooth = typeof matchMedia === "function" && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+  window.scrollBy({ top: dy, behavior: smooth ? "smooth" : "auto" });
+}
+
+/**
  * 목록 아래 '합치기'·'PDF 만들기'·'저장하기' 줄을 화면 아래에 붙여 둬요(QA 5바퀴). PDF 40개·사진 50장이면 목록이 6,000~7,500px 라
  * 넣은 뒤 단추까지 한참 내려야 했어요. 제자리가 화면 안이면 그냥 제자리에 있어요(position: sticky).
  * 붙어 있는 동안만 바탕을 깔아요(.stuck) — 아래 1px 을 화면 밖에 두고 다 보이는지로 알아요
@@ -180,9 +198,11 @@ function watchCover(): void {
     if (!t || !(t instanceof HTMLElement)) return;
     requestAnimationFrame(() => {
       if (document.activeElement !== t || !t.matches(":focus-visible")) return;
-      const bar = [...document.querySelectorAll<HTMLElement>(".actions.stick")].find((b) => !b.closest("[hidden]"));
-      if (!bar || bar.contains(t)) return;
-      const dy = coveredBy(t.getBoundingClientRect(), bar.getBoundingClientRect());
+      // HWP 보기는 '내보내기' 줄과 열린 칸의 만들기 줄, 붙는 줄이 둘이에요(QA 12바퀴) — 보이는 줄마다 재서 가장 많이 가린 만큼
+      const bars = [...document.querySelectorAll<HTMLElement>(".actions.stick")].filter((b) => !b.closest("[hidden]"));
+      if (!bars.length || bars.some((b) => b.contains(t))) return;
+      const r = t.getBoundingClientRect();
+      const dy = Math.max(0, ...bars.map((b) => coveredBy(r, b.getBoundingClientRect())));
       if (dy > 0) window.scrollBy(0, dy);
     });
   });

@@ -2,7 +2,7 @@
 // 처리방침 '이 브라우저에 기억하는 것'(public/privacy.html)과 맞춰요. 저장이 막힌 브라우저면 기본값으로 동작해요.
 
 export const PREF = {
-  hwpDpi: "jms.hwp.dpi", hwpBold: "jms.hwp.bold",
+  hwpDpi: "jms.hwp.dpi", hwpBold: "jms.hwp.bold", hwpFmt: "jms.hwp.fmt",
   imgFmt: "jms.img.fmt", imgQuality: "jms.img.q", imgMaxW: "jms.img.maxw", imgMaxH: "jms.img.maxh", imgMaxKb: "jms.img.maxkb",
   pdfMode: "jms.pdf.mode", pdfLevel: "jms.pdf.level", pdfTarget: "jms.pdf.target",
   img2pdfSize: "jms.img2pdf.size", img2pdfMargin: "jms.img2pdf.margin",

@@ -57,7 +57,7 @@ describe("안내 페이지에서 고른 파일을 그 페이지의 도구로", (
 
   it("처리방침이 넘기는 안내 페이지 셋을 적어요", () => {
     const pv = read("public/privacy.html");
-    expect(pv).toMatch(/2026년 10월 24일부터 적용/);
+    expect(pv).toMatch(/2026년 10월 2\d일부터 적용/); // 판이 바뀌면 날짜가 올라가요(QA 12바퀴 10월 28일 판)
     expect(pv).toMatch(/안내 페이지\(\/hwp·\/pdf-compress·\/pdf-merge\)에서 파일을 고르면[^<]*IndexedDB/);
   });
 });

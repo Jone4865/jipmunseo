@@ -2,7 +2,7 @@
 import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
-import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, FIT_STEPS, FIT_TARGETS_MB, fitToSize, mbToBytes, parseTargetMb, targetMbInput, overButLooksUnder, type CompressMode, type CompressLevel, type CompressPreset } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, FIT_STEPS, FIT_TARGETS_MB, fitToSize, mbToBytes, parseTargetMb, targetMbInput, overButLooksUnder, mergeGoLabel, mergeBadNote, type CompressMode, type CompressLevel, type CompressPreset } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
 import type { ThumbRenderer } from "./ui.js";
 import type { PdfjsDocument } from "./vendor.js";
@@ -28,6 +28,9 @@ export function mountMerge(root: HTMLElement): Mounted {
   const err = alertBox();
   const prog = progress();
   const listEl = h("ol", { class: "flist", "aria-label": "합칠 PDF 순서" });
+  // 못 읽은 PDF 는 합칠 때 빠져요(QA 12바퀴). 예전에는 말없이 빠져서 제출 서류 하나가 빠진 채 내려받을 수 있었고,
+  // 1개 + 깨진 1개면 목록엔 2개인데 단추는 'PDF를 2개 이상 넣어 주세요'라 어긋났어요
+  const badNote = h("p", { class: "hint bad", style: "margin:10px 0 0", hidden: true });
   const summary = h("span", { class: "muted" });
   const go = h("button", { type: "button", class: "btn primary big", disabled: true, onclick: run }, "PDF 합치기");
   const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { gen++; files = []; out.replaceChildren(); render(); holdTaps(); focusIfLost(dz); } }, "모두 지우기");
@@ -39,7 +42,7 @@ export function mountMerge(root: HTMLElement): Mounted {
   const panel = h("div", { class: "panel", hidden: true },
     h("div", { class: "panel-head" }, h("h2", {}, "합칠 순서"), h("div", { class: "row" }, summary, sortBtn, clearBtn)),
     h("p", { class: "hint", style: "margin:-6px 0 10px" }, moveHint("끌어서 놓거나 화살표 단추로", "화살표 단추로") + " 순서를 바꿀 수 있어요. 책갈피(목차)와 입력 칸은 합친 파일로 따라오지 않아요."),
-    listEl);
+    listEl, badNote);
   const out = h("div");
   const dz = dropzone({ accept: "application/pdf,.pdf", title: "PDF 파일을 여기에 끌어다 놓으세요", sub: "또는 눌러서 고르기 · 여러 개 한꺼번에 가능", onFiles: add });
 
@@ -82,15 +85,19 @@ export function mountMerge(root: HTMLElement): Mounted {
     [...listEl.querySelectorAll(".fitem")].at(-1)?.querySelector('[aria-label="아래로"]')?.setAttribute("disabled", "");
     describeRows(listEl, ".fitem", ".fname");
     const good = files.filter((f) => f.pages);
+    const bad = files.filter((f) => f.error).length;
     summary.textContent = `${files.length}개 · 모두 ${sumPages(good)}쪽`;
     sortBtn.hidden = files.length < 2;
+    badNote.hidden = !bad;
+    badNote.textContent = bad ? mergeBadNote(bad, good.length) : "";
     go.disabled = good.length < 2 || files.some((f) => f.pages == null && !f.error);
-    go.textContent = good.length < 2 ? "PDF를 2개 이상 넣어 주세요" : `${good.length}개 합치기 (${sumPages(good)}쪽)`;
+    go.textContent = mergeGoLabel(good.length, bad, sumPages(good));
   }
 
   async function run() {
     err.hide(); out.replaceChildren();
     const good = files.filter((f) => f.pages);
+    const bad = files.filter((f) => f.error).length;
     go.disabled = true;
     try {
       prog.set(0, "파일 읽는 중…");
@@ -99,7 +106,7 @@ export function mountMerge(root: HTMLElement): Mounted {
       prog.set(1, "완료!");
       const name = outName(good[0].file.name, "합침", "pdf");
       const blob = pdfBlob(bytes);
-      out.replaceChildren(h("div", { class: "result", id: "result" }, h("h2", {}, icon("ok"), `${sumPages(good)}쪽짜리 PDF가 만들어졌어요`), resultItem({ name, blob, extra: `${good.length}개 파일 합침` })));
+      out.replaceChildren(h("div", { class: "result", id: "result" }, h("h2", {}, icon("ok"), `${sumPages(good)}쪽짜리 PDF가 만들어졌어요`), resultItem({ name, blob, extra: `${good.length}개 파일 합침${bad ? ` · 못 읽은 ${bad}개 제외` : ""}` })));
       out.querySelector<HTMLButtonElement>("button.primary")?.focus();
     } catch (e) { err.show(errMsg(e)); }
     finally { prog.hide(); render(); }

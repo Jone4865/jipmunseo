@@ -1,7 +1,7 @@
 // 9. 서류 사본 가리기 · "OO 제출용" 워터마크 — 신분증·통장·등본 사본을 보내기 전에, 이 기기 안에서
 //  - 가릴 곳을 끌어서 검은 네모로 칠해요. 저장할 때 그림 자체에 칠하니 밑의 글자는 결과에 남지 않아요.
 //  - PDF 는 쪽마다 그림으로 그려서 칠하므로 결과도 이미지 PDF 예요(글자 선택 안 됨 = 가린 글자도 못 꺼냄).
-import { h, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, openPdfjs, renderPdfPage, focusIfLost, setDisabledKeepingFocus } from "./ui.js";
+import { h, stickyActions, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, openPdfjs, renderPdfPage, focusIfLost, setDisabledKeepingFocus } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { formatSize, kindOf, outName, normRect, rectAt, watermarkLines, watermarkMetrics, kstDateLabel, mmToPt, type Rect, type WatermarkSize } from "./lib.js";
 import type { Mounted } from "./app.js";
@@ -69,11 +69,14 @@ export function mountMask(root: HTMLElement): Mounted {
       h("p", { class: "hint", style: "margin:0 0 10px" }, "주민등록번호 뒷자리, 주소, 계좌번호처럼 보내면 안 되는 곳을 손가락이나 마우스로 끌어서 검게 칠해요. 칠한 곳을 톡 누르면 지워져요."),
       pager, stage,
       h("div", { class: "row", style: "margin-top:10px" }, count, undoBtn, clearBtn)),
-    h("div", { class: "panel" },
-      h("div", { class: "panel-head" }, h("h2", { class: "sub-h", style: "margin:0" }, "2. 워터마크"), checkbox("워터마크 넣기", wm.on, (v) => { wm.on = v; wmOpts.classList.toggle("off", !v); changed(); })),
-      wmOpts),
-    h("div", { class: "alert info" }, "가린 곳은 그림 위에 완전히 덮어 칠해서 저장해요. 밑에 있던 글자는 결과 파일에 남지 않고, 사진 속 위치·기기 정보도 빠져요."),
-    h("div", { class: "actions" }, go2));
+    // '사본 만들기'는 워터마크 칸부터 화면 아래에 붙어요(QA 12바퀴). 390×844 에서 사진을 넣으면 단추가 1,511px 아래라,
+    // 제출처를 적고도 한참 내려가야 했어요. 칠하는 그림 칸에서는 붙지 않아서 끌어 칠하는 손가락과 겹치지 않아요
+    h("div", { class: "mask-finish" },
+      h("div", { class: "panel" },
+        h("div", { class: "panel-head" }, h("h2", { class: "sub-h", style: "margin:0" }, "2. 워터마크"), checkbox("워터마크 넣기", wm.on, (v) => { wm.on = v; wmOpts.classList.toggle("off", !v); changed(); })),
+        wmOpts),
+      h("div", { class: "alert info" }, "가린 곳은 그림 위에 완전히 덮어 칠해서 저장해요. 밑에 있던 글자는 결과 파일에 남지 않고, 사진 속 위치·기기 정보도 빠져요."),
+      stickyActions(go2)));
   root.append(dz, err.el, work, prog.el, out);
 
   const page = () => pages[cur];

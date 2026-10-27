@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 // 집문서 — 라우터 (#pdf-merge 같은 주소로 도구마다 공유 가능)
-import { h, ICONS, arrowed, filesFromPaste, toast, focusIfLost, revealIfBelow, resultFiles } from "./ui.js";
+import { h, ICONS, arrowed, filesFromPaste, toast, focusIfLost, revealResult, resultFiles } from "./ui.js";
 import { installTapGuard, holdTaps } from "./tap.js";
 import { mountMerge, mountSplit, mountOrganize, mountPdfCompress } from "./tools-pdf.js";
 import { mountImgToPdf, mountCompress, mountExif } from "./tools-img.js";
@@ -265,7 +265,7 @@ new MutationObserver((recs) => {
     const t = sayArrows(c.textContent || "");
     if (!t || (t === lastSaid.text && Date.now() - lastSaid.at < 5000)) continue;
     // 결과가 화면 아래 밖에 생기면 보이게 내리고, '만들기' 단추가 일하는 동안 꺼져 초점이 문서 맨 앞으로 빠졌으면 내려받기 단추로
-    revealIfBelow(res as HTMLElement);
+    revealResult(res as HTMLElement);
     focusIfLost(res?.querySelector<HTMLElement>("button.primary") ?? null);
     lastSaid = { text: t, at: Date.now() };
     // 새 결과만 확인 도장을 찍어요(같은 결과를 다시 그릴 때는 위에서 걸러져요)
