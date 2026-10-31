@@ -100,7 +100,7 @@ describe("합치기에 못 읽은 PDF 가 섞였을 때", () => {
   });
   it("결과 줄에도 뺀 개수를 적어요", () => {
     const s = read("src/tools-pdf.ts");
-    expect(s).toMatch(/go\.textContent = mergeGoLabel\(good\.length, bad, sumPages\(good\)\)/);
+    expect(s).toMatch(/go\.textContent = (retry \?\? )?mergeGoLabel\(good\.length, bad, sumPages\(good\)\)/);
     expect(s).toMatch(/개 파일 합침\$\{bad \? ` · 못 읽은 \$\{bad\}개 제외` : ""\}/);
     expect(s).toMatch(/listEl, badNote\)/);
   });

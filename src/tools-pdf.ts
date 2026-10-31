@@ -1,8 +1,8 @@
 // PDF 도구: 합치기 / 나누기·페이지 빼기 / 회전·순서
-import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
+import { h, stickyActions, ICONS, icon, arrowed, iconBtn, rowAction, describeRows, dropzone, progress, alertBox, errMsg, PdfToolError, resultItem, sortable, seg, filterFiles, LIMITS, runPdf, openPdfjs, thumbRenderer, makeZip, toast, renderPdfPage, canvasToBlob, focusIfLost, touchFirst } from "./ui.js";
 import { holdTaps } from "./tap.js";
 import { PREF, readPref, writePref, pickPref } from "./prefs.js";
-import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, FIT_STEPS, FIT_TARGETS_MB, fitToSize, mbToBytes, parseTargetMb, targetMbInput, overButLooksUnder, mergeGoLabel, mergeBadNote, type CompressMode, type CompressLevel, type CompressPreset } from "./lib.js";
+import { formatSize, outName, moveItem, sortByName, isSortedByName, parseRanges, rangesToSet, formatRanges, uniqueNames, baseName, safeName, normRotation, savedPercent, COMPRESS_PRESETS, FIT_STEPS, FIT_TARGETS_MB, fitToSize, mbToBytes, parseTargetMb, targetMbInput, overButLooksUnder, mergeGoLabel, mergeBadNote, mergeRetryLabel, type CompressMode, type CompressLevel, type CompressPreset } from "./lib.js";
 import type { ShrinkStats } from "./pdf-shrink.js";
 import type { ThumbRenderer } from "./ui.js";
 import type { PdfjsDocument } from "./vendor.js";
@@ -21,10 +21,12 @@ export const moveHint = (mouse: string, touch: string, isTouch = touchFirst()): 
 
 /* ═════════ 1. PDF 합치기 ═════════ */
 export function mountMerge(root: HTMLElement): Mounted {
-  let files: { id: number; file: File; pages: number | null; error: string | null }[] = []; // {id, file, pages, error}
+  // toolFail: PDF 도구를 받지 못해 쪽수를 못 셌어요(인터넷 끊김 등) — 파일 탓이 아니라 '못 읽은 PDF'로 세지 않고 다시 셀 수 있어요(버그 찾기 14차)
+  let files: { id: number; file: File; pages: number | null; error: string | null; toolFail?: boolean }[] = []; // {id, file, pages, error}
   let uid = 0;
   /** '모두 지우기'마다 올려요 — 큰 PDF 쪽수를 세는 동안 지우면, 아직 차례를 기다리던 파일이 지운 목록에 다시 들어왔어요(버그 5차) */
   let gen = 0;
+  let toolMsg = false; // 알림 칸에 'PDF 도구를 받지 못했어요'가 떠 있어요 — 그 줄이 다 빠지거나 다시 세면 거둬요
   const err = alertBox();
   const prog = progress();
   const listEl = h("ol", { class: "flist", "aria-label": "합칠 PDF 순서" });
@@ -33,7 +35,7 @@ export function mountMerge(root: HTMLElement): Mounted {
   const badNote = h("p", { class: "hint bad", style: "margin:10px 0 0", hidden: true });
   const summary = h("span", { class: "muted" });
   const go = h("button", { type: "button", class: "btn primary big", disabled: true, onclick: run }, "PDF 합치기");
-  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { gen++; files = []; out.replaceChildren(); render(); holdTaps(); focusIfLost(dz); } }, "모두 지우기");
+  const clearBtn = h("button", { type: "button", class: "btn ghost sm", onclick: () => { gen++; files = []; out.replaceChildren(); render(); holdTaps(); focusIfLost(dz); err.hide(); } }, "모두 지우기");
   // 휴대폰 파일 고르기는 누른 차례대로 넘겨 줘서 '스캔 1~40'이 섞여 들어와요 — 화살표로 맞추려면 수십 번 눌러야 했어요(QA 5바퀴)
   const sortBtn = h("button", { type: "button", class: "btn ghost sm", title: "파일 이름 순서로 놓아요", onclick: () => {
     if (isSortedByName(files, (f) => f.file.name)) { toast("이미 이름 순서예요"); return; }
@@ -60,13 +62,35 @@ export function mountMerge(root: HTMLElement): Mounted {
       const it: (typeof files)[number] = { id: ++uid, file, pages: null, error: null };
       files.push(it);
       relist();
-      try {
-        const buf = await file.arrayBuffer();
-        it.pages = (await runPdf<{ pages: number }>("count", { buf }, [buf])).pages;
-      } catch (e) { it.error = errMsg(e); }
+      await count(it);
       render();
     }
   }
+  async function count(it: (typeof files)[number]): Promise<void> {
+    try {
+      const buf = await it.file.arrayBuffer();
+      it.pages = (await runPdf<{ pages: number }>("count", { buf }, [buf])).pages;
+    } catch (e) {
+      if (e instanceof PdfToolError) { it.toolFail = true; toolMsg = true; err.show(e.message); } else it.error = errMsg(e);
+    }
+  }
+  /** 도구를 받지 못했던 파일의 쪽수를 다시 세요('다시 해 보기' · 인터넷이 다시 이어지면) */
+  async function recount(): Promise<void> {
+    const g = gen;
+    const again = files.filter((f) => f.toolFail);
+    if (!again.length) return;
+    err.hide();
+    for (const it of again) it.toolFail = false;
+    render();
+    for (const it of again) {
+      if (g !== gen) return;
+      if (!files.includes(it)) continue;
+      await count(it);
+      render();
+    }
+  }
+  const onOnline = () => { if (root.isConnected) void recount(); };
+  addEventListener("online", onOnline);
 
   function render() {
     panel.hidden = !files.length;
@@ -76,7 +100,7 @@ export function mountMerge(root: HTMLElement): Mounted {
       h("span", { class: "fnum" }, i + 1),
       h("div", { class: "fmeta" },
         h("div", { class: "fname", title: f.file.name }, f.file.name),
-        h("div", { class: "fsub" }, f.error ? h("span", { class: "bad" }, f.error) : f.pages == null ? "쪽수 세는 중…" : `${f.pages}쪽`, " · ", formatSize(f.file.size))),
+        h("div", { class: "fsub" }, f.error ? h("span", { class: "bad" }, f.error) : f.toolFail ? h("span", { class: "bad" }, "쪽수를 세지 못했어요") : f.pages == null ? "쪽수 세는 중…" : `${f.pages}쪽`, " · ", formatSize(f.file.size))),
       h("div", { class: "fbtns" },
         iconBtn("up", "위로", rowAction(listEl, ".fitem", () => { files = moveItem(files, i, i - 1); relist(); return i - 1; })),
         iconBtn("down", "아래로", rowAction(listEl, ".fitem", () => { files = moveItem(files, i, i + 1); relist(); return i + 1; })),
@@ -90,11 +114,14 @@ export function mountMerge(root: HTMLElement): Mounted {
     sortBtn.hidden = files.length < 2;
     badNote.hidden = !bad;
     badNote.textContent = bad ? mergeBadNote(bad, good.length) : "";
-    go.disabled = good.length < 2 || files.some((f) => f.pages == null && !f.error);
-    go.textContent = mergeGoLabel(good.length, bad, sumPages(good));
+    const retry = mergeRetryLabel(files.filter((f) => f.toolFail).length);
+    if (toolMsg && !retry) { toolMsg = false; err.hide(); }
+    go.disabled = files.some((f) => f.pages == null && !f.error && !f.toolFail) || (!retry && good.length < 2);
+    go.textContent = retry ?? mergeGoLabel(good.length, bad, sumPages(good));
   }
 
   async function run() {
+    if (files.some((f) => f.toolFail)) { await recount(); return; }
     err.hide(); out.replaceChildren();
     const good = files.filter((f) => f.pages);
     const bad = files.filter((f) => f.error).length;
@@ -112,7 +139,7 @@ export function mountMerge(root: HTMLElement): Mounted {
     finally { prog.hide(); render(); }
   }
   render();
-  return {};
+  return { unmount: () => removeEventListener("online", onOnline) };
 }
 
 /* ═════════ PDF 하나를 열어 썸네일 격자 만드는 공통부 ═════════ */

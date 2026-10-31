@@ -1,6 +1,6 @@
 // 공통 UI 조각 + 라이브러리 로더
 import { ICONS } from "./icons.js";
-import { formatSize, kindOf, moveItem, zipWriter, uniqueName, rowNews } from "./lib.js";
+import { formatSize, kindOf, moveItem, zipWriter, uniqueName, rowNews, pdfToolFailMessage } from "./lib.js";
 import { vendorImport, type PdfjsModule, type PdfjsDocument, type HeicToModule, type FflateModule } from "./vendor.js";
 import { holdTaps } from "./tap.js";
 
@@ -419,6 +419,8 @@ export function filterFiles(files: File[], kinds: string[], maxBytes: number, re
 }
 
 /* ───── PDF 워커 ───── */
+/** PDF 도구(워커·pdf-lib)를 받지 못했어요 — 파일 문제가 아니에요(합치기가 '못 읽은 PDF'로 세지 않게 따로 알아봐요) */
+export class PdfToolError extends Error {}
 interface Pending { resolve: (v: unknown) => void; reject: (e: Error) => void; onProgress?: (done: number, total: number) => void }
 let pdfWorker: Worker | null, seq = 0;
 const pending = new Map<number, Pending>();
@@ -433,7 +435,8 @@ function worker(): Worker {
     else { pending.delete(id); type === "done" ? p.resolve(ev.data.result) : p.reject(new Error(ev.data.message)); }
   };
   pdfWorker.onerror = (e) => {
-    for (const p of pending.values()) p.reject(new Error("PDF 처리 도구를 불러오지 못했어요. 새로고침 후 다시 해 주세요."));
+    const msg = pdfToolFailMessage(navigator.onLine !== false);
+    for (const p of pending.values()) p.reject(new PdfToolError(msg));
     pending.clear();
     pdfWorker = null;
     e.preventDefault?.();

@@ -3,7 +3,7 @@
 //  - PDF 는 쪽마다 그림으로 그려서 칠하므로 결과도 이미지 PDF 예요(글자 선택 안 됨 = 가린 글자도 못 꺼냄).
 import { h, stickyActions, icon, dropzone, progress, alertBox, errMsg, resultItem, seg, filterFiles, LIMITS, runPdf, decodeImage, drawToCanvas, canvasToBlob, openPdfjs, renderPdfPage, focusIfLost, setDisabledKeepingFocus } from "./ui.js";
 import { holdTaps } from "./tap.js";
-import { formatSize, kindOf, outName, normRect, rectAt, watermarkLines, watermarkMetrics, kstDateLabel, mmToPt, type Rect, type WatermarkSize } from "./lib.js";
+import { formatSize, kindOf, outName, normRect, rectAt, watermarkLines, watermarkMetrics, kstDateLabel, mmToPt, needsKoFont, type Rect, type WatermarkSize } from "./lib.js";
 import type { Mounted } from "./app.js";
 
 /** history: 바꾸기 전 가린 곳들(되돌리기용) — 칠하기·톡 눌러 지우기·모두 지우기마다 하나씩 */
@@ -13,6 +13,8 @@ type WmColor = keyof typeof COLORS;
 const MAX_PAGES = 10;
 const RENDER_DPI = 150;
 const FONT = '"JL Sans", "JL Sans Ko", -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", sans-serif';
+let coreP: Promise<string | null> | null = null;
+const loadCore = (): Promise<string | null> => (coreP ||= import("./font-core.js").then((m) => m.JL_CORE, () => { coreP = null; return null; }));
 
 function checkbox(label: string, checked: boolean, onChange: (v: boolean) => void): HTMLLabelElement {
   const input = h("input", { type: "checkbox", checked: checked || null });
@@ -158,13 +160,17 @@ export function mountMask(root: HTMLElement): Mounted {
   }
   function go(i: number): void { cur = Math.max(0, Math.min(pages.length - 1, i)); changed(); }
 
-  // 캔버스 글자는 그 글자가 든 웹 글꼴 파일이 받아져 있어야 JL Sans 로 그려져요(첫 파일에 없는 한글은 JL Sans Ko 파일)
+  // 캔버스 글자는 그 글자가 든 웹 글꼴 파일이 받아져 있어야 JL Sans 로 그려져요(첫 파일에 없는 한글은 JL Sans Ko 파일).
+  // 한글 더 파일은 첫 파일에 없는 글자가 있을 때만 받아요(needsKoFont, 버그 찾기 14차 — 예전에는 가리기를 열 때마다 370KB 를 더 받았어요).
+  // 첫 파일 글자 목록(src/font-core.ts)은 첫 화면 코드에 넣지 않고 이때 받아요. 못 받으면 예전처럼 둘 다 불러요
   let fontKey = "";
   function ensureFont(): Promise<void> {
     const text = wmLines().join("");
     if (!document.fonts || text === fontKey) return Promise.resolve();
     fontKey = text;
-    return document.fonts.load(`800 40px "JL Sans", "JL Sans Ko"`, text).then(() => schedule(), () => {});
+    return loadCore()
+      .then((core) => document.fonts.load(`800 40px ${core !== null && !needsKoFont(text, core) ? '"JL Sans"' : '"JL Sans", "JL Sans Ko"'}`, text))
+      .then(() => schedule(), () => {});
   }
 
   /* ───── 끌어서 칠하기 ───── */

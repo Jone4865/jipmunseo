@@ -258,7 +258,9 @@ export function mountHwp(root: HTMLElement): Mounted {
   let fmt: ExportFormat = "pdf";
   let range: "all" | "pick" = "all";
   let dpi: HwpDpi = savedDpi();
-  const rangeIn = h("input", { class: "input", type: "text", placeholder: "예) 1-3, 5", "aria-label": "저장할 쪽", autocomplete: "off", inputmode: "numeric" });
+  // 자판은 글자 자판(inputmode text, PDF 나누기와 같아요). numeric 이면 아이폰은 숫자 0~9 만 있는 자판이라 '-'·','를 못 넣어서
+  // 40쪽(아이폰 150dpi 한도)이 넘는 문서를 '1-40'처럼 나눠 저장할 수 없었어요(버그 찾기 14차)
+  const rangeIn = h("input", { class: "input", type: "text", placeholder: "예) 1-3, 5", "aria-label": "저장할 쪽", autocomplete: "off", inputmode: "text" });
   const rangeSlot = h("span", { class: "hwp-range" });
   let rangeSeg: Seg<"all" | "pick"> | null = null;
   /** 범위 버튼은 문서마다 새로 만들어요("전체 N쪽") */

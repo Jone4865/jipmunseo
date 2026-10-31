@@ -379,6 +379,31 @@ export function mergeGoLabel(good: number, bad: number, pages: number): string {
   if (good >= 2) return `${good}개 합치기 (${pages}쪽)`;
   return bad ? "열리는 PDF를 2개 이상 넣어 주세요" : "PDF를 2개 이상 넣어 주세요";
 }
+/**
+ * 캔버스 글자(신분증 가리기 워터마크)에 한글 더 글꼴(JL Sans Ko, 370KB)이 필요한지: 그 파일의 unicode-range(U+A1~17F·한글 자모·완성형) 안 글자 중
+ * 첫 파일(core)에 없는 것이 있을 때만. document.fonts.load 에 두 이름을 같이 주면 첫 파일에 다 있어도 범위만 겹치면(한글이면 늘)
+ * 둘째 파일까지 받아서, 가리기를 열 때마다 370KB 를 더 받았어요(버그 찾기 14차)
+ */
+export function needsKoFont(text: string, core: string): boolean {
+  const have = new Set(core);
+  for (const c of text) {
+    const cp = c.codePointAt(0) ?? 0;
+    const inKo = (cp >= 0xa1 && cp <= 0x17f) || (cp >= 0x3131 && cp <= 0x318e) || (cp >= 0xac00 && cp <= 0xd7a3);
+    if (inKo && !have.has(c)) return true;
+  }
+  return false;
+}
+/**
+ * PDF 도구(워커 + pdf-lib)를 받지 못했을 때 알림(버그 찾기 14차). 인터넷이 끊겼는데 '새로고침 후 다시'라고 하면 새로 고쳐도 안 되고,
+ * 합치기는 파일 탓('못 읽은 PDF 2개')으로 보였어요. 끊겼으면 연결을 보라고, 연결돼 있으면(배포 틈 등) 새로 고치라고 해요
+ */
+export function pdfToolFailMessage(online: boolean): string {
+  return online ? "PDF 처리 도구를 불러오지 못했어요. 새로고침 후 다시 해 주세요." : "PDF 도구를 받지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요.";
+}
+/** 합치기 단추: 도구를 받지 못한 파일이 있으면 쪽수부터 다시 세요(파일 탓이 아니라서 '열리는 PDF를…'이라고 하지 않아요) */
+export function mergeRetryLabel(toolFailed: number): string | null {
+  return toolFailed ? "다시 해 보기" : null;
+}
 /** 목록 아래 안내: 못 읽은 PDF 는 합칠 때 빠져요 */
 export function mergeBadNote(bad: number, good: number): string {
   return good >= 2 ? `못 읽은 PDF ${bad}개는 빼고 합쳐요.` : `못 읽은 PDF ${bad}개는 합칠 수 없어요.`;

@@ -7,8 +7,11 @@ import { fileURLToPath } from "node:url";
 import type { Plugin } from "vite";
 
 /** 미리 받지 않는 것: 서비스 워커 자신·서버 설정·검색용 파일·공유 그림·라이선스 원문, vendor(23MB — 그 도구를 한 번 쓰면 저장해요), 없는 주소 화면,
- *  한글 더 글꼴(jl-sans-ko 349KB — 파일 이름·워터마크에 첫 글꼴에 없는 한글이 나올 때만 받고, 받으면 저장해요) */
-const SKIP = /^(sw\.js|_headers|_redirects|404\.html|robots\.txt|sitemap\.xml|third-party-licenses\.txt|assets\/og\.(png|svg)|vendor\/.*|fonts\/jl-sans-ko\.[0-9a-f]{10}\.woff2)$/;
+ *  한글 더 글꼴(jl-sans-ko 349KB — 파일 이름·워터마크에 첫 글꼴에 없는 한글이 나올 때만 받고, 받으면 저장해요),
+ *  홈 화면 아이콘(icon.png 28KB·apple-touch-icon.png 19KB — 페이지가 쓰지 않고 설치할 때만 받아요. 설치된 아이콘은 기기가 따로 갖고 있어서
+ *  인터넷 없이 열 때도 필요 없어요. 예전에는 첫 방문마다 서비스 워커가 둘을 받아 첫 방문 미리 저장 133KB 중 48KB 였어요, 버그 찾기 14차).
+ *  페이지가 쓰는 favicon.png·icon.svg 는 그대로 미리 저장해요(이미 받은 것이라 브라우저 캐시에서 와요) */
+const SKIP = /^(sw\.js|_headers|_redirects|404\.html|robots\.txt|sitemap\.xml|third-party-licenses\.txt|assets\/og\.(png|svg)|assets\/(icon|apple-touch-icon)\.png|vendor\/.*|fonts\/jl-sans-ko\.[0-9a-f]{10}\.woff2)$/;
 /** Cloudflare Pages 는 index.html → /, hwp.html → /hwp 처럼 확장자 없는 주소로 보내서 그 주소로 저장해요 */
 const PAGE_KEY: Record<string, string> = { "index.html": "./", "hwp.html": "./hwp", "pdf-compress.html": "./pdf-compress", "pdf-merge.html": "./pdf-merge", "privacy.html": "./privacy", "licenses.html": "./licenses" };
 

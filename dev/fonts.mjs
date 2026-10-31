@@ -69,4 +69,9 @@ patch('public/licenses.html', (s) => s.replace(block, faces));
 // preload 는 두지 않아요 — 느린 3G 흉내(400ms·50KB/s)에서 글꼴을 미리 받게 하면 화면 JS·CSS 와 대역을 나눠서 첫 그림이
 // 첫 화면 2.4초 → 3.1초, HWP 화면 1.7초 → 2.4초로 늦어졌고, 글꼴이 바뀌는 때(5.8초·4.3~4.7초)는 거의 같았어요(font-display: swap).
 fs.writeFileSync(path.join(ROOT, 'dev/fonts-chars.json'), JSON.stringify({ core: sortChars(core), missing: sortChars(new Set([...want].filter((c) => !has.has(c)))), files }, null, 1) + '\n');
+// 워터마크(캔버스) 글자가 첫 파일에 다 있으면 한글 더 파일을 받지 않으려고 화면 코드에도 첫 파일 글자를 둬요(src/tools-mask.ts, 버그 찾기 14차)
+fs.writeFileSync(path.join(ROOT, 'src/font-core.ts'), `// dev/fonts.mjs 가 써요(손으로 고치지 않아요). JL Sans 첫 파일(jl-sans)에 든 글자 — 신분증 가리기 워터마크가 이 밖의 한글을 쓸 때만
+// 한글 더 파일(jl-sans-ko 370KB)을 받으려고요(버그 찾기 14차). dev/fonts-chars.json 의 core 와 같아요(test/bug14.test.ts)
+export const JL_CORE = ${JSON.stringify(sortChars(core))};
+`);
 console.log(`JL Sans 첫 파일 ${core.size}자 · 한글 더 ${ko.size}자(${toRange(ko).length}B 범위) · Pretendard 에 없는 글자 ${want.size - core.size}자(기기 글꼴)`);

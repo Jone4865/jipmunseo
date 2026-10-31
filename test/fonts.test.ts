@@ -34,7 +34,8 @@ test("CSS·라이선스 페이지가 만든 파일 이름(해시)을 그대로 �
   assert.doesNotMatch(all, /cdn\.jsdelivr|Pretendard Variable/);
   assert.match(read("public/_headers"), /\/fonts\/\*\n {2}Cache-Control: public, max-age=31536000, immutable/);
   assert.match(read("public/_headers"), /font-src 'self';/);
-  assert.match(read("src/tools-mask.ts"), /document\.fonts\.load\(`800 40px "JL Sans", "JL Sans Ko"`, text\)/);
+  // 첫 파일에 없는 글자가 있을 때만 "JL Sans Ko" 까지 불러요(버그 찾기 14차 — test/bug14.test.ts)
+  assert.match(read("src/tools-mask.ts"), /document\.fonts\.load\(`800 40px \$\{core !== null && !needsKoFont\(text, core\) \? '"JL Sans"' : '"JL Sans", "JL Sans Ko"'\}`, text\)/);
 });
 
 test("예약 글꼴 이름(Pretendard)은 줄인 판에 쓰지 않아요 — 저작권·라이선스 칸은 그대로, 고지에 원래 이름", async () => {

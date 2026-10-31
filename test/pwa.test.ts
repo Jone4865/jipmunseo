@@ -11,16 +11,16 @@ import { sayArrows } from "../src/lib.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (f: string) => fs.readFileSync(path.join(root, f), "utf8");
 
-test("서비스 워커 미리 저장 목록: 화면·JS·CSS·아이콘·안내 페이지만, vendor(23MB)·공유 그림·404 는 빼요", () => {
+test("서비스 워커 미리 저장 목록: 화면·JS·CSS·파비콘·안내 페이지만, vendor(23MB)·공유 그림·홈 화면 아이콘·404 는 빼요", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "jms-sw-"));
   try {
     for (const f of ["index.html", "hwp.html", "privacy.html", "licenses.html", "404.html", "_headers", "sw.js", "robots.txt", "sitemap.xml", "third-party-licenses.txt",
-      "manifest.webmanifest", "css/style.css", "js/index-abc.js", "js/hwp-worker-abc.js", "assets/icon.png", "assets/og.png", "assets/og.svg",
+      "manifest.webmanifest", "css/style.css", "js/index-abc.js", "js/hwp-worker-abc.js", "assets/icon.png", "assets/apple-touch-icon.png", "assets/favicon.png", "assets/icon.svg", "assets/og.png", "assets/og.svg",
       "vendor/pdf-lib-1.17.1.esm.min.js", "vendor/rhwp-0.8.7/rhwp_bg.wasm"]) {
       fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
       fs.writeFileSync(path.join(dir, f), "x");
     }
-    assert.deepEqual(precacheList(dir), ["./assets/icon.png", "./css/style.css", "./hwp", "./", "./js/hwp-worker-abc.js", "./js/index-abc.js", "./licenses", "./manifest.webmanifest", "./privacy"]);
+    assert.deepEqual(precacheList(dir), ["./assets/favicon.png", "./assets/icon.svg", "./css/style.css", "./hwp", "./", "./js/hwp-worker-abc.js", "./js/index-abc.js", "./licenses", "./manifest.webmanifest", "./privacy"]);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
